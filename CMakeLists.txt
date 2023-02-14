@@ -13,6 +13,10 @@ set(SOURCES
     src/sketchWindow.cpp
 )
 
+set(RESOURCE_FILES
+    resources/logo.svg
+)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
 
@@ -25,6 +29,8 @@ target_link_libraries (
     ${PROJECT_NAME} PRIVATE
     ${GTKMM_LIBRARIES}
 )
+
+file(COPY ${RESOURCE_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Resources)
 
 install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -7,12 +7,11 @@ using namespace std;
 SketchWindow::SketchWindow()
     : Gtk::ApplicationWindow()
 {
-    m_Color.set_rgba(0.0, 0.0, 0.0, 1.0);
-
     // Menu - Action
     add_action("new", sigc::mem_fun(*this, &SketchWindow::on_menu_file_new));
     add_action("undo", sigc::mem_fun(*this, &SketchWindow::on_menu_others));
     add_action("redo", sigc::mem_fun(*this, &SketchWindow::on_menu_others));
+    add_action("about", sigc::mem_fun(*this, &SketchWindow::on_menu_help_about));
 
     // MenuPopup
     m_refBuilder = Gtk::Builder::create();
@@ -52,14 +51,28 @@ SketchWindow::SketchWindow()
                 sigc::mem_fun(*this, &SketchWindow::on_mouse_button_pressed));
     m_DrawingArea.add_controller(refGesture_mouse);
 
-    // StatusBar
-    m_StatusBar.set_visible(true);
-    m_StatusBar.set_can_focus(false);
-    m_StatusBar.set_margin_start(10);
-    m_StatusBar.set_margin_end(10);
-    m_StatusBar.set_margin_top(6);
-    m_StatusBar.set_margin_bottom(6);
-    m_StatusBar.push("StatusBar!");
+    // Message Dialog
+    m_pMessageDialog.reset(new Gtk::MessageDialog(*this, "Info"));
+    m_pMessageDialog->set_modal(true);
+    m_pMessageDialog->set_hide_on_close(true);
+    m_pMessageDialog->signal_response().connect(
+                sigc::hide(sigc::mem_fun(*m_pMessageDialog, &Gtk::Widget::hide)));
+
+    // About Dialog
+    m_pAboutDialog.reset(new Gtk::AboutDialog);
+    m_pAboutDialog->set_transient_for(*this);
+    m_pAboutDialog->set_hide_on_close();
+    //m_pAboutDialog->set_logo(Gdk::Texture::create_from_resource("Resources/logo.svg"));
+    m_pAboutDialog->set_program_name("Simple Application");
+    m_pAboutDialog->set_version("1.0.0");
+    m_pAboutDialog->set_copyright("jpenrici");
+    m_pAboutDialog->set_comments("Simple application using Gtkmm 4.");
+    m_pAboutDialog->set_license("LGPL");
+
+    m_pAboutDialog->set_website("http://www.gtkmm.org");
+    m_pAboutDialog->set_website_label("gtkmm website");
+
+    m_pAboutDialog->set_authors(std::vector<Glib::ustring>{"jpenrici"});
 
     // Button
     m_Button1.set_label("Button 1");
@@ -74,6 +87,7 @@ SketchWindow::SketchWindow()
     m_Button2.signal_clicked().connect(
                 sigc::mem_fun(*this, &SketchWindow::on_button2_clicked));
 
+    m_Color.set_rgba(0.0, 0.0, 0.0, 1.0);
     m_ColorButton1.set_rgba(m_Color);
     m_ColorButton1.set_visible(true);
     m_ColorButton1.set_can_focus(false);
@@ -94,6 +108,15 @@ SketchWindow::SketchWindow()
     m_DrawingArea.set_draw_func(
                 sigc::mem_fun(*this, &SketchWindow::on_draw));
     m_DrawingArea.set_expand(true);
+
+    // StatusBar
+    m_StatusBar.set_visible(true);
+    m_StatusBar.set_can_focus(false);
+    m_StatusBar.set_margin_start(10);
+    m_StatusBar.set_margin_end(10);
+    m_StatusBar.set_margin_top(6);
+    m_StatusBar.set_margin_bottom(6);
+    m_StatusBar.push("StatusBar!");
 
     // Window
     set_title("Draw");
@@ -125,6 +148,12 @@ void SketchWindow::on_menu_others()
     m_StatusBar.push("A menu item was selected.");
 }
 
+void SketchWindow::on_menu_help_about()
+{
+    m_pAboutDialog->set_visible(true);
+    m_pAboutDialog->present();
+}
+
 void SketchWindow::on_popup_button_pressed(int /* n_press */, double x, double y)
 {
     const Gdk::Rectangle rect(x, y, 1, 1);
@@ -146,12 +175,16 @@ void SketchWindow::on_mouse_button_pressed(int /* n_press */, double x, double y
 
 void SketchWindow::on_button1_clicked()
 {
-    cout << "button1" << endl;
+    m_pMessageDialog->set_secondary_text("Button 1");
+    m_pMessageDialog->set_visible(true);
+    m_pMessageDialog->present();
 }
 
 void SketchWindow::on_button2_clicked()
-{
-    cout << "button2" << endl;
+{;
+    m_pMessageDialog->set_secondary_text("Button 2");
+    m_pMessageDialog->set_visible(true);
+    m_pMessageDialog->present();
 }
 
 void SketchWindow::on_draw(const Cairo::RefPtr<Cairo::Context> &cr,
@@ -179,7 +212,7 @@ void SketchWindow::on_choose_color()
         m_pColorChooserDialog->set_modal(true);
         m_pColorChooserDialog->set_hide_on_close(true);
         m_pColorChooserDialog->signal_response().connect(
-                    sigc::mem_fun(*this, &SketchWindow::on_dialog_response));
+                    sigc::mem_fun(*this, &SketchWindow::on_colorChooserDialog_response));
         m_pColorChooserDialog->set_rgba(m_Color);
         m_pColorChooserDialog->show();
     }
@@ -188,7 +221,7 @@ void SketchWindow::on_choose_color()
     }
 }
 
-void SketchWindow::on_dialog_response(int response_id)
+void SketchWindow::on_colorChooserDialog_response(int response_id)
 {
     m_pColorChooserDialog->hide();
     switch (response_id) {
@@ -197,9 +230,7 @@ void SketchWindow::on_dialog_response(int response_id)
         change_color();
         break;
     }
-    case Gtk::ResponseType::CANCEL: {
-        break;
-    }
+    case Gtk::ResponseType::CANCEL:
     default: {
         break;
     }

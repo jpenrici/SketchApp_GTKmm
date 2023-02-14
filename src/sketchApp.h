@@ -22,10 +22,9 @@ protected:
 
 private:
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
-    Glib::ustring getUI_Menu();
+    Glib::ustring getUI();
 
     void create_window();
     void destroy_window(Gtk::Window *window);
     void on_menu_file_quit();
-    void on_menu_help_about();
 };

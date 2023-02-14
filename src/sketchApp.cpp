@@ -1,6 +1,8 @@
 #include "sketchApp.h"
 #include "sketchWindow.h"
 
+#include <gtkmm-4.0/gtkmm/aboutdialog.h>
+
 #include <iostream>
 
 using namespace std;
@@ -21,12 +23,11 @@ void SketchApp::on_startup()
 
     // Action
     add_action("quit", sigc::mem_fun(*this, &SketchApp::on_menu_file_quit));
-    add_action("about", sigc::mem_fun(*this, &SketchApp::on_menu_help_about));
 
     // Menu
     m_refBuilder = Gtk::Builder::create();
     try {
-        m_refBuilder->add_from_string(getUI_Menu());
+        m_refBuilder->add_from_string(getUI());
     }
     catch (const Glib::Error &ex) {
         cerr << "Error: " << ex.what();
@@ -52,9 +53,9 @@ void SketchApp::create_window()
     auto win = new SketchWindow();
     add_window(*win);
     win->signal_hide().connect(
-        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->signal_destroy().connect(
-        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->set_show_menubar(true);
     win->show();
 }
@@ -74,12 +75,7 @@ void SketchApp::on_menu_file_quit()
     }
 }
 
-void SketchApp::on_menu_help_about()
-{
-    cout << "Help|About App was selected." << endl;
-}
-
-Glib::ustring SketchApp::getUI_Menu()
+Glib::ustring SketchApp::getUI()
 {
     return {
         "<interface>"
@@ -118,7 +114,7 @@ Glib::ustring SketchApp::getUI_Menu()
         "      <section>"
         "        <item>"
         "          <attribute name='label' translatable='yes'>_About</attribute>"
-        "          <attribute name='action'>app.about</attribute>"
+        "          <attribute name='action'>win.about</attribute>"
         "        </item>"
         "      </section>"
         "    </submenu>"
