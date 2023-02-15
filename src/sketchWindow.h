@@ -25,8 +25,20 @@ private:
         Position(double x, double y);
     };
 
-    bool drawing;
-    Position m_Position, m_Position2;
+    enum TypeShape { NONE, LINE, RECTANGLE, CIRCLE };
+
+    struct Shape {
+        unsigned int typeShape = NONE;
+        Position position1, position2;
+        Gdk::RGBA color = Gdk::RGBA(0.0, 0.0, 0.0, 1.0);
+
+        Shape(unsigned int tShape, Position pos1, Position pos2, Gdk::RGBA c);
+    };
+
+    unsigned int m_Shape;
+    double m_CursorSize;
+    std::vector<Shape> m_vectorShapes;
+    Position m_Position1, m_Position2;
 
     Gtk::Box m_VBox1, m_VBox2, m_HBox1;
     Gtk::Button m_Button1, m_Button2;
@@ -34,10 +46,11 @@ private:
     Gtk::PopoverMenu m_MenuPopup;
     Gtk::Statusbar m_StatusBar;
     Gtk::DrawingArea m_DrawingArea;
+    Gtk::SpinButton m_SpinButton;
     Gdk::RGBA m_Color;
 
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
-    Glib::ustring getUI_MenuPopup();
+    Glib::ustring getUI();
 
     std::unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
     std::unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
@@ -54,4 +67,5 @@ private:
     void change_color();
     void on_colorChooserDialog_response(int response_id);
     void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
+    void info(Glib::ustring message);
 };

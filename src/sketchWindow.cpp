@@ -16,7 +16,7 @@ SketchWindow::SketchWindow()
     // MenuPopup
     m_refBuilder = Gtk::Builder::create();
     try {
-        m_refBuilder->add_from_string(getUI_MenuPopup());
+        m_refBuilder->add_from_string(getUI());
     }
     catch (const Glib::Error &ex) {
         cerr << "Error: " << ex.what();
@@ -75,13 +75,13 @@ SketchWindow::SketchWindow()
     m_pAboutDialog->set_authors(std::vector<Glib::ustring>{"jpenrici"});
 
     // Button
-    m_Button1.set_label("Button 1");
+    m_Button1.set_label("Line");
     m_Button1.set_visible(true);
     m_Button1.set_can_focus(false);
     m_Button1.signal_clicked().connect(
                 sigc::mem_fun(*this, &SketchWindow::on_button1_clicked));
 
-    m_Button2.set_label("Button 2");
+    m_Button2.set_label("Rectangle");
     m_Button2.set_visible(true);
     m_Button2.set_can_focus(false);
     m_Button2.signal_clicked().connect(
@@ -93,6 +93,9 @@ SketchWindow::SketchWindow()
     m_ColorButton1.set_can_focus(false);
     m_ColorButton1.signal_color_set().connect(
                 sigc::mem_fun(*this, &SketchWindow::change_color));
+
+    m_SpinButton.set_range(1.0, 10.0);
+    m_SpinButton.set_value(5.0);
 
     // Box
     m_VBox1.set_orientation(Gtk::Orientation::VERTICAL);
@@ -123,9 +126,10 @@ SketchWindow::SketchWindow()
     set_default_size(800, 600);
     set_resizable(false);
 
-    m_VBox2.append(m_ColorButton1);
     m_VBox2.append(m_Button1);
     m_VBox2.append(m_Button2);
+    m_VBox2.append(m_SpinButton);
+    m_VBox2.append(m_ColorButton1);
 
     m_HBox1.append(m_VBox2);
     m_HBox1.append(m_DrawingArea);
@@ -134,6 +138,11 @@ SketchWindow::SketchWindow()
     m_VBox1.append(m_StatusBar);
 
     set_child(m_VBox1);
+
+    // Shape
+    m_Shape = NONE;
+    m_Position1 = Position(100, 100);
+    m_Position2 = m_Position1;
 }
 
 void SketchWindow::on_menu_file_new()
@@ -163,46 +172,57 @@ void SketchWindow::on_popup_button_pressed(int /* n_press */, double x, double y
 
 void SketchWindow::on_mouse_button_pressed(int /* n_press */, double x, double y)
 {
-    m_Position2.X = m_Position.X;
-    m_Position2.Y = m_Position.Y;
-
-    m_Position = Position(x, y);
-    cout << m_Position2.X << "," << m_Position2.Y << " : "
-         << m_Position.X << "," << m_Position.Y << endl;
-
     m_DrawingArea.queue_draw();
+
+    if (m_Position1.X == m_Position2.X && m_Position1.Y == m_Position2.Y) {
+        m_Position1 = Position(x, y);
+        return;
+    }
+    m_Position2 = Position(x, y);
+    if (m_Shape != NONE) {
+        m_vectorShapes.push_back(Shape(m_Shape, m_Position1, m_Position2, m_Color));
+    }
+
+    m_Position1 = m_Position2;
 }
 
 void SketchWindow::on_button1_clicked()
 {
-    m_pMessageDialog->set_secondary_text("Button 1");
-    m_pMessageDialog->set_visible(true);
-    m_pMessageDialog->present();
+    m_Shape = LINE;
+    m_Button1.set_sensitive(false);
+    m_Button2.set_sensitive(true);
 }
 
 void SketchWindow::on_button2_clicked()
-{;
-    m_pMessageDialog->set_secondary_text("Button 2");
-    m_pMessageDialog->set_visible(true);
-    m_pMessageDialog->present();
+{
+    m_Shape = RECTANGLE;
+    m_Button1.set_sensitive(true);
+    m_Button2.set_sensitive(false);
 }
 
 void SketchWindow::on_draw(const Cairo::RefPtr<Cairo::Context> &cr,
                            int width, int height)
 {
-    cr->set_line_width(10.0);
-    cr->set_source_rgba(m_Color.get_red(), m_Color.get_green(), m_Color.get_blue(),
-                        m_Color.get_alpha());
+    m_CursorSize = m_SpinButton.get_value();
 
-    cr->move_to(m_Position2.X, m_Position2.Y);
-    cr->line_to(m_Position.X, m_Position.Y);
+    cr->save();
+    cr->set_source_rgba(0.0, 0.0, 0.0, 1.0);
+    cr->arc(m_Position1.X, m_Position1.Y, m_CursorSize, 0.0, 2 * 3.1415);
+    cr->restore();
     cr->stroke();
-}
 
-void SketchWindow::change_color()
-{
-    m_Color = m_ColorButton1.get_rgba();
-    m_DrawingArea.queue_draw();
+    for (auto& s : m_vectorShapes) {
+        if (s.typeShape == LINE) {
+            cr->set_line_width(m_CursorSize * 1.5);
+            cr->set_source_rgba(s.color.get_red(),
+                                s.color.get_green(),
+                                s.color.get_blue(),
+                                s.color.get_alpha());
+            cr->move_to(s.position1.X, s.position1.Y);
+            cr->line_to(s.position2.X, s.position2.Y);
+            cr->stroke();
+        }
+    }
 }
 
 void SketchWindow::on_choose_color()
@@ -237,6 +257,12 @@ void SketchWindow::on_colorChooserDialog_response(int response_id)
     }
 }
 
+void SketchWindow::change_color()
+{
+    m_Color = m_ColorButton1.get_rgba();
+    m_DrawingArea.queue_draw();
+}
+
 SketchWindow::Position::Position(double x, double y)
 {
     if (x < 0) {
@@ -249,7 +275,20 @@ SketchWindow::Position::Position(double x, double y)
     Y = y;
 }
 
-Glib::ustring SketchWindow::getUI_MenuPopup()
+SketchWindow::Shape::Shape(unsigned int typeShape,
+                           Position position1, Position position2,
+                           Gdk::RGBA color)
+    : typeShape(typeShape), position1(position1), position2(position2), color(color)
+{}
+
+void SketchWindow::info(Glib::ustring message)
+{
+    m_pMessageDialog->set_secondary_text(message);
+    m_pMessageDialog->set_visible(true);
+    m_pMessageDialog->present();
+}
+
+Glib::ustring SketchWindow::getUI()
 {
     return {
         "<interface>"
