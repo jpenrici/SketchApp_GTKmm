@@ -9,63 +9,75 @@
 
 #include <gtkmm-4.0/gtkmm.h>
 
+using namespace std;
+
 class SketchWindow : public Gtk::ApplicationWindow {
 public:
     SketchWindow();
     virtual ~SketchWindow() {};
 
 private:
+    vector<string> labels {"Line", "Polyline", "Rectangle", "Circle"};
 
-    struct Position {
+    enum Shape {LINE, POLYLINE, RECTANGLE, CIRCLE, NONE};
+
+    struct Point {
         double X, Y;
-        Position()
-        {
-            X = 0.0, Y = 0.0;
-        }
-        Position(double x, double y);
+        Point();
+        Point(double x, double y);
+        bool equal(Point p);
     };
 
-    enum TypeShape { NONE, LINE, RECTANGLE, CIRCLE };
+    struct DrawingElement {
+        Shape shape;
+        vector<Point> points;
 
-    struct Shape {
-        unsigned int typeShape = NONE;
-        Position position1, position2;
-        Gdk::RGBA color = Gdk::RGBA(0.0, 0.0, 0.0, 1.0);
+        float strokeWidth;
+        Gdk::RGBA strokeColor, fillColor;
 
-        Shape(unsigned int tShape, Position pos1, Position pos2, Gdk::RGBA c);
+        DrawingElement();
+        DrawingElement(Shape shape);
+        DrawingElement(Shape shape, vector<Point> points);
     };
 
-    unsigned int m_Shape;
-    double m_CursorSize;
-    std::vector<Shape> m_vectorShapes;
-    Position m_Position1, m_Position2;
+    unsigned int m_BackUpLimit;
 
-    Gtk::Box m_VBox1, m_VBox2, m_HBox1;
-    Gtk::Button m_Button1, m_Button2;
-    Gtk::ColorButton m_ColorButton1;
+    Point m_Cursor;
+    vector<DrawingElement> m_Elements;
+    vector<vector<DrawingElement> > m_Undo;
+    vector<vector<DrawingElement> > m_Redo;
+
+    Gtk::Box m_VBox;
+    Gtk::Box m_VBox_SidePanel;
+    Gtk::Box m_HBox;
+    Gtk::Box m_HBox_ColorButtons;
+    Gtk::ColorButton m_ColorButton_Fill;
+    Gtk::ColorButton m_ColorButton_Stroke;
+    Gtk::SpinButton m_SpinButton;
     Gtk::PopoverMenu m_MenuPopup;
     Gtk::Statusbar m_StatusBar;
     Gtk::DrawingArea m_DrawingArea;
-    Gtk::SpinButton m_SpinButton;
-    Gdk::RGBA m_Color;
+    Gdk::RGBA m_ColorBackground;
+    vector<Gtk::Button> m_Button;
 
+    Glib::RefPtr<Gtk::Adjustment> m_adjustment_SpinButton;
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
     Glib::ustring getUI();
 
-    std::unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
-    std::unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
-    std::unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
+    unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
+    unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
+    unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
 
-    void on_menu_file_new();
-    void on_menu_others();
-    void on_menu_help_about();
-    void on_popup_button_pressed(int /* n_press */, double x, double y);
-    void on_mouse_button_pressed(int /* n_press */, double x, double y);
-    void on_button1_clicked();
-    void on_button2_clicked();
-    void on_choose_color();
-    void change_color();
-    void on_colorChooserDialog_response(int response_id);
+    void help();
+    void update();
+    void menuPopup(int n, double x, double y);
+    void setPosition(int n, double x, double y);
+    void setShape(Shape shape);
+    void setBackground();
+    void cleanDrawArea();
+    void on_menu_undo();
+    void on_menu_redo();
+    void colorChooserDialog_response(int response_id);
     void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
     void info(Glib::ustring message);
 };

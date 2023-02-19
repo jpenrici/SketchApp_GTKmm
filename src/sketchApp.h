@@ -26,5 +26,5 @@ private:
 
     void create_window();
     void destroy_window(Gtk::Window *window);
-    void on_menu_file_quit();
+    void quit();
 };

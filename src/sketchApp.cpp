@@ -1,16 +1,11 @@
 #include "sketchApp.h"
 #include "sketchWindow.h"
 
-#include <gtkmm-4.0/gtkmm/aboutdialog.h>
-
 #include <iostream>
 
 using namespace std;
 
-SketchApp::SketchApp()
-    : Gtk::Application("org.gtkmm.SketchApp")
-{
-}
+SketchApp::SketchApp() : Gtk::Application("org.gtkmm.SketchApp") {}
 
 Glib::RefPtr<SketchApp> SketchApp::create()
 {
@@ -22,7 +17,7 @@ void SketchApp::on_startup()
     Gtk::Application::on_startup();
 
     // Action
-    add_action("quit", sigc::mem_fun(*this, &SketchApp::on_menu_file_quit));
+    add_action("quit", sigc::mem_fun(*this, &SketchApp::quit));
 
     // Menu
     m_refBuilder = Gtk::Builder::create();
@@ -35,10 +30,7 @@ void SketchApp::on_startup()
 
     auto object = m_refBuilder->get_object("menu");
     auto gmenu = dynamic_pointer_cast<Gio::Menu>(object);
-    if (!gmenu) {
-        g_warning("GMenu not found");
-    }
-    else {
+    if (gmenu) {
         set_menubar(gmenu);
     }
 }
@@ -65,7 +57,7 @@ void SketchApp::destroy_window(Gtk::Window *window)
     delete window;
 }
 
-void SketchApp::on_menu_file_quit()
+void SketchApp::quit()
 {
     quit();
 
