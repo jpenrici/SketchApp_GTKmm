@@ -36,17 +36,29 @@ SketchWindow::SketchWindow() : Gtk::ApplicationWindow()
         insert_action_group("popup", refActionGroup);
 
         // Mouse : Left Button
-        auto refGesture_menuPopup = Gtk::GestureClick::create();
-        refGesture_menuPopup->set_button(GDK_BUTTON_SECONDARY);
-        refGesture_menuPopup->signal_pressed().connect(sigc::mem_fun(*this, &SketchWindow::menuPopup));
-        m_DrawingArea.add_controller(refGesture_menuPopup);
+        auto refGesture1 = Gtk::GestureClick::create();
+        refGesture1->set_button(GDK_BUTTON_SECONDARY);
+        refGesture1->signal_pressed().connect(sigc::mem_fun(*this, &SketchWindow::menuPopup));
+        m_DrawingArea.add_controller(refGesture1);
     }
 
     // Mouse : Right Button
-    auto refGesture_mouse = Gtk::GestureClick::create();
-    refGesture_mouse->set_button(GDK_BUTTON_PRIMARY);
-    refGesture_mouse->signal_pressed().connect(sigc::mem_fun(*this, &SketchWindow::setPosition));
-    m_DrawingArea.add_controller(refGesture_mouse);
+    auto refGesture2 = Gtk::GestureClick::create();
+    refGesture2->set_button(GDK_BUTTON_PRIMARY);
+    refGesture2->signal_pressed().connect(sigc::mem_fun(*this, &SketchWindow::position));
+    refGesture2->signal_released().connect(sigc::mem_fun(*this, &SketchWindow::position));
+    m_DrawingArea.add_controller(refGesture2);
+
+    auto refGesture3 = Gtk::GestureDrag::create();
+    refGesture3->set_button(GDK_BUTTON_PRIMARY);
+    refGesture3->signal_drag_update().connect(sigc::mem_fun(*this, &SketchWindow::move));
+    m_DrawingArea.add_controller(refGesture3);
+
+    // Keyboard
+    auto controller = Gtk::EventControllerKey::create();
+    controller->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
+    controller->signal_key_pressed().connect(sigc::mem_fun(*this, &SketchWindow::on_key_pressed), false);
+    add_controller(controller);
 
     // Message Dialog
     m_pMessageDialog.reset(new Gtk::MessageDialog(*this, "Info"));
@@ -86,8 +98,9 @@ SketchWindow::SketchWindow() : Gtk::ApplicationWindow()
     m_ColorButton_Stroke.set_can_focus(false);
     m_ColorButton_Stroke.signal_color_set().connect(sigc::mem_fun(*this, &SketchWindow::update));
 
-    m_adjustment_SpinButton = Gtk::Adjustment::create(5.0, 0.0, 20.0, 1.0, 5.0, 0.0);
+    m_adjustment_SpinButton = Gtk::Adjustment::create(5.0, 1.0, 30.0, 1.0, 5.0, 0.0);
     m_SpinButton.set_adjustment(m_adjustment_SpinButton);
+    m_SpinButton.set_can_focus(false);
     m_SpinButton.signal_value_changed().connect(sigc::mem_fun(*this, &SketchWindow::update));
 
     // Box
@@ -134,7 +147,7 @@ SketchWindow::SketchWindow() : Gtk::ApplicationWindow()
     set_child(m_VBox);
 
     // Initialize
-    m_BackUpLimit = 100;
+    m_BackUpLimit = 250;
     cleanDrawArea();
 }
 
@@ -151,17 +164,57 @@ void SketchWindow::menuPopup(int n, double x, double y)
     m_MenuPopup.popup();
 }
 
+bool SketchWindow::on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state)
+{
+    if ((keyval == GDK_KEY_z) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
+        on_menu_undo();
+    }
+    if ((keyval == GDK_KEY_y) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
+        on_menu_redo();
+    }
+
+    m_StatusBar.push("...");
+
+    return false;
+}
+
 void SketchWindow::cleanDrawArea()
 {
     for (auto &btn : m_Button) {
         btn.set_sensitive(true);
     }
 
+    moving = false;
     m_Elements.clear();
-    m_DrawingArea.queue_draw();
 
     m_StatusBar.remove_all_messages();
     m_StatusBar.push("Select a shape to get started.");
+
+    m_DrawingArea.queue_draw();
+}
+
+void SketchWindow::setShape(Shape shape)
+{
+    for (auto &btn : m_Button) {
+        string s = btn.get_label();
+        btn.set_sensitive(!(s == labels[shape]));
+    }
+
+    m_Elements.push_back(DrawingElement(shape, {}));
+}
+
+void SketchWindow::position(int n, double x, double y)
+{
+    m_Cursor = Point(x, y);
+    moving = false;
+    update();
+}
+
+void SketchWindow::move(double x, double y)
+{
+    moving = true;
+    m_Ruler = Point(m_Cursor.X + x, m_Cursor.Y + y);
+    update();
 }
 
 void SketchWindow::update()
@@ -198,22 +251,6 @@ void SketchWindow::update()
     m_DrawingArea.queue_draw();
 }
 
-void SketchWindow::setShape(Shape shape)
-{
-    for (auto &btn : m_Button) {
-        string s = btn.get_label();
-        btn.set_sensitive(!(s == labels[shape]));
-    }
-
-    m_Elements.push_back(DrawingElement(shape, {}));
-}
-
-void SketchWindow::setPosition(int n, double x, double y)
-{
-    m_Cursor = Point(x, y);
-    update();
-}
-
 void SketchWindow::on_menu_undo()
 {
     if (!m_Undo.empty()) {
@@ -229,7 +266,7 @@ void SketchWindow::on_menu_undo()
                     string s = btn.get_label();
                     btn.set_sensitive(!(s == labels[m_Elements.back().shape]));
                 }
-                setPosition(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
+                position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
             }
         }
         else {
@@ -251,7 +288,7 @@ void SketchWindow::on_menu_redo()
                 string s = btn.get_label();
                 btn.set_sensitive(!(s == labels[m_Elements.back().shape]));
             }
-            setPosition(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
+            position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
         }
         m_Redo.pop_back();
     }
@@ -279,26 +316,54 @@ void SketchWindow::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, i
             if (element.shape == RECTANGLE) {
                 Gdk::Cairo::set_source_rgba(cr, element.strokeColor);
                 cr->rectangle(element.points[0].X,
-                        element.points[0].Y,
-                        element.points[1].X - element.points[0].X,
-                        element.points[1].Y - element.points[0].Y);
+                              element.points[0].Y,
+                              element.points[1].X - element.points[0].X,
+                              element.points[1].Y - element.points[0].Y);
                 cr->stroke();
                 Gdk::Cairo::set_source_rgba(cr, element.fillColor);
                 cr->rectangle(element.points[0].X,
-                        element.points[0].Y,
-                        element.points[1].X - element.points[0].X,
-                        element.points[1].Y - element.points[0].Y);
+                              element.points[0].Y,
+                              element.points[1].X - element.points[0].X,
+                              element.points[1].Y - element.points[0].Y);
                 cr->fill();
             }
             if (element.shape == CIRCLE) {
                 double radius = sqrt(pow((element.points[1].X - element.points[0].X), 2) +
-                        pow((element.points[1].Y - element.points[0].Y), 2));
+                                     pow((element.points[1].Y - element.points[0].Y), 2));
                 Gdk::Cairo::set_source_rgba(cr, element.strokeColor);
                 cr->arc(element.points[0].X, element.points[0].Y, radius, 0.0, 2 * numbers::pi);
                 cr->stroke();
                 Gdk::Cairo::set_source_rgba(cr, element.fillColor);
                 cr->arc(element.points[0].X, element.points[0].Y, radius, 0.0, 2 * numbers::pi);
                 cr->fill();
+            }
+        }
+    }
+
+    // Ruler
+    if (!m_Elements.empty()) {
+        if (moving) {
+            Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
+            cr->set_line_width(1.0);
+            cr->move_to(m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
+            cr->line_to(m_Ruler.X, m_Ruler.Y);
+            cr->stroke();
+            cr->set_line_width(2.0);
+            cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
+            cr->stroke();
+            if (m_Elements.back().shape == RECTANGLE) {
+                cr->rectangle(m_Elements.back().points.back().X,
+                              m_Elements.back().points.back().Y,
+                              m_Ruler.X - m_Elements.back().points.back().X,
+                              m_Ruler.Y - m_Elements.back().points.back().Y);
+                cr->stroke();
+            }
+            if (m_Elements.back().shape == CIRCLE) {
+                double radius = sqrt(pow((m_Elements.back().points.back().X - m_Ruler.X), 2) +
+                                     pow((m_Elements.back().points.back().Y - m_Ruler.Y), 2));
+                cr->arc(m_Elements.back().points.back().X, m_Elements.back().points.back().Y,
+                        radius, 0.0, 2 * numbers::pi);
+                cr->stroke();
             }
         }
     }

@@ -45,9 +45,9 @@ void SketchApp::create_window()
     auto win = new SketchWindow();
     add_window(*win);
     win->signal_hide().connect(
-                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->signal_destroy().connect(
-                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->set_show_menubar(true);
     win->show();
 }

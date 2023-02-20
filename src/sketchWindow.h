@@ -43,6 +43,7 @@ private:
     unsigned int m_BackUpLimit;
 
     Point m_Cursor;
+    Point m_Ruler;
     vector<DrawingElement> m_Elements;
     vector<vector<DrawingElement> > m_Undo;
     vector<vector<DrawingElement> > m_Redo;
@@ -71,7 +72,6 @@ private:
     void help();
     void update();
     void menuPopup(int n, double x, double y);
-    void setPosition(int n, double x, double y);
     void setShape(Shape shape);
     void setBackground();
     void cleanDrawArea();
@@ -80,4 +80,10 @@ private:
     void colorChooserDialog_response(int response_id);
     void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
     void info(Glib::ustring message);
+
+    void position(int n, double x, double y);
+    void move(double x, double y);
+
+    bool moving;
+    bool on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state);
 };
