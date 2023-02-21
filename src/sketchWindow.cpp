@@ -1,6 +1,7 @@
 #include "sketchWindow.h"
 
 #include <iostream>
+#include <math.h>
 
 using namespace std;
 
@@ -91,17 +92,17 @@ SketchWindow::SketchWindow() : Gtk::ApplicationWindow()
     m_ColorButton_Fill.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 0.0));
     m_ColorButton_Fill.set_visible(true);
     m_ColorButton_Fill.set_can_focus(false);
-    m_ColorButton_Fill.signal_color_set().connect(sigc::mem_fun(*this, &SketchWindow::update));
+    m_ColorButton_Fill.set_tooltip_text("Fill color");
 
     m_ColorButton_Stroke.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 1.0));
     m_ColorButton_Stroke.set_visible(true);
     m_ColorButton_Stroke.set_can_focus(false);
-    m_ColorButton_Stroke.signal_color_set().connect(sigc::mem_fun(*this, &SketchWindow::update));
+    m_ColorButton_Stroke.set_tooltip_text("Stroke color");
 
     m_adjustment_SpinButton = Gtk::Adjustment::create(5.0, 1.0, 30.0, 1.0, 5.0, 0.0);
     m_SpinButton.set_adjustment(m_adjustment_SpinButton);
     m_SpinButton.set_can_focus(false);
-    m_SpinButton.signal_value_changed().connect(sigc::mem_fun(*this, &SketchWindow::update));
+    m_SpinButton.set_tooltip_text("Stroke width");
 
     // Box
     m_VBox.set_orientation(Gtk::Orientation::VERTICAL);
@@ -241,10 +242,17 @@ void SketchWindow::update()
         }
 
         m_StatusBar.push("Point " + to_string(m_Elements.back().points.size()));
-        if (m_Elements.back().shape == LINE || m_Elements.back().shape == RECTANGLE || m_Elements.back().shape == CIRCLE) {
+        switch (m_Elements.back().shape) {
+        case LINE:
+        case RECTANGLE:
+        case CIRCLE:
+        case ELLIPSE:
             if (m_Elements.back().points.size() == 2) {
                 m_Elements.push_back(DrawingElement(m_Elements.back().shape, {}));
             }
+            break;
+        default:
+            break;
         }
     }
 
@@ -303,6 +311,7 @@ void SketchWindow::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, i
 
     // Shapes
     for (auto &element : m_Elements) {
+        cr->scale(1.0, 1.0);
         if (element.points.size() >= 2) {
             cr->set_line_width(element.strokeWidth);
             if (element.shape == LINE || element.shape == POLYLINE) {
@@ -327,15 +336,38 @@ void SketchWindow::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, i
                               element.points[1].Y - element.points[0].Y);
                 cr->fill();
             }
-            if (element.shape == CIRCLE) {
+            if (element.shape == CIRCLE || element.shape == ELLIPSE) {
                 double radius = sqrt(pow((element.points[1].X - element.points[0].X), 2) +
                                      pow((element.points[1].Y - element.points[0].Y), 2));
-                Gdk::Cairo::set_source_rgba(cr, element.strokeColor);
-                cr->arc(element.points[0].X, element.points[0].Y, radius, 0.0, 2 * numbers::pi);
-                cr->stroke();
-                Gdk::Cairo::set_source_rgba(cr, element.fillColor);
-                cr->arc(element.points[0].X, element.points[0].Y, radius, 0.0, 2 * numbers::pi);
-                cr->fill();
+                double radiusX = radius;
+                double radiusY = radius;
+                if (element.shape == ELLIPSE) {
+                    radiusX = (max(element.points[1].X, element.points[0].X) -
+                               min(element.points[1].X, element.points[0].X));
+                    radiusY = (max(element.points[1].Y, element.points[0].Y) -
+                               min(element.points[1].Y, element.points[0].Y));
+                }
+                for (unsigned int i = 0; i <= 1; i++) {
+                    double x0 = element.points[0].X + radiusX * cos(0);
+                    double y0 = element.points[0].Y + radiusY * sin(0);
+                    double angle = 0;
+                    double step = 0.2;
+                    while (angle <= 360) {
+                        double x1 = element.points[0].X + radiusX * cos(angle * numbers::pi / 180);
+                        double y1 = element.points[0].Y + radiusY * sin(angle * numbers::pi / 180);
+                        Gdk::Cairo::set_source_rgba(cr, element.fillColor);
+                        cr->move_to(element.points[0].X, element.points[0].Y);
+                        if (i == 0) {
+                            Gdk::Cairo::set_source_rgba(cr, element.strokeColor);
+                            cr->move_to(x0, y0);
+                        }
+                        cr->line_to(x1, y1);
+                        cr->stroke();
+                        x0 = x1;
+                        y0 = y1;
+                        angle += step;
+                    }
+                }
             }
         }
     }

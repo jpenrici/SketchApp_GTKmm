@@ -17,9 +17,9 @@ public:
     virtual ~SketchWindow() {};
 
 private:
-    vector<string> labels {"Line", "Polyline", "Rectangle", "Circle"};
+    vector<string> labels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse"};
 
-    enum Shape {LINE, POLYLINE, RECTANGLE, CIRCLE, NONE};
+    enum Shape {LINE, POLYLINE, RECTANGLE, CIRCLE, ELLIPSE, NONE};
 
     struct Point {
         double X, Y;
