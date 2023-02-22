@@ -42,7 +42,7 @@ void SketchApp::on_activate()
 
 void SketchApp::create_window()
 {
-    auto win = new SketchWindow();
+    auto win = new SketchWin();
     add_window(*win);
     win->signal_hide().connect(
                 sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
@@ -80,6 +80,19 @@ Glib::ustring SketchApp::getUI()
         "          <attribute name='label' translatable='yes'>_New</attribute>"
         "          <attribute name='action'>win.new</attribute>"
         "        </item>"
+        "      <submenu>"
+        "        <attribute name='label' translatable='yes'>Export</attribute>"
+        "        <section>"
+        "          <item>"
+        "            <attribute name='label' translatable='yes'>.TXT</attribute>"
+        "            <attribute name='action'>win.exportTxt</attribute>"
+        "          </item>"
+        "          <item>"
+        "            <attribute name='label' translatable='yes'>.SVG</attribute>"
+        "            <attribute name='action'>win.exportSvg</attribute>"
+        "          </item>"
+        "        </section>"
+        "      </submenu>"
         "      </section>"
         "      <section>"
         "        <item>"

@@ -7,14 +7,30 @@
  */
 #pragma once
 
-#include <gtkmm-4.0/gtkmm.h>
+#include "gtkmm-4.0/gdkmm/rgba.h"
+#include "gtkmm-4.0/gtkmm/aboutdialog.h"
+#include "gtkmm-4.0/gtkmm/applicationwindow.h"
+#include "gtkmm-4.0/gtkmm/box.h"
+#include "gtkmm-4.0/gtkmm/builder.h"
+#include "gtkmm-4.0/gtkmm/button.h"
+#include "gtkmm-4.0/gtkmm/colorbutton.h"
+#include "gtkmm-4.0/gtkmm/colorchooserdialog.h"
+#include "gtkmm-4.0/gtkmm/drawingarea.h"
+#include "gtkmm-4.0/gtkmm/filechooserdialog.h"
+#include "gtkmm-4.0/gtkmm/messagedialog.h"
+#include "gtkmm-4.0/gtkmm/popovermenu.h"
+#include "gtkmm-4.0/gtkmm/spinbutton.h"
+#include "gtkmm-4.0/gtkmm/statusbar.h"
+
+#include <string>
+#include <vector>
 
 using namespace std;
 
-class SketchWindow : public Gtk::ApplicationWindow {
+class SketchWin : public Gtk::ApplicationWindow {
 public:
-    SketchWindow();
-    virtual ~SketchWindow() {};
+    SketchWin();
+    virtual ~SketchWin() {};
 
 private:
     vector<string> labels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse"};
@@ -26,6 +42,16 @@ private:
         Point();
         Point(double x, double y);
         bool equal(Point p);
+        string str();
+    };
+
+    struct Color {
+        float R, G, B, A;
+        Color();
+        Color(float r, float g, float b, float a);
+        Color(Gdk::RGBA color);
+        Gdk::RGBA rgba();
+        string str();
     };
 
     struct DrawingElement {
@@ -33,7 +59,7 @@ private:
         vector<Point> points;
 
         float strokeWidth;
-        Gdk::RGBA strokeColor, fillColor;
+        Color strokeColor, fillColor;
 
         DrawingElement();
         DrawingElement(Shape shape);
@@ -41,49 +67,53 @@ private:
     };
 
     unsigned int m_BackUpLimit;
+    bool draggingMouse;
 
     Point m_Cursor;
     Point m_Ruler;
     vector<DrawingElement> m_Elements;
-    vector<vector<DrawingElement> > m_Undo;
     vector<vector<DrawingElement> > m_Redo;
+    vector<vector<DrawingElement> > m_Undo;
 
-    Gtk::Box m_VBox;
-    Gtk::Box m_VBox_SidePanel;
+    Gdk::RGBA m_ColorBackground;
     Gtk::Box m_HBox;
     Gtk::Box m_HBox_ColorButtons;
+    Gtk::Box m_VBox;
+    Gtk::Box m_VBox_SidePanel;
     Gtk::ColorButton m_ColorButton_Fill;
     Gtk::ColorButton m_ColorButton_Stroke;
-    Gtk::SpinButton m_SpinButton;
-    Gtk::PopoverMenu m_MenuPopup;
-    Gtk::Statusbar m_StatusBar;
     Gtk::DrawingArea m_DrawingArea;
-    Gdk::RGBA m_ColorBackground;
+    Gtk::PopoverMenu m_MenuPopup;
+    Gtk::SpinButton m_SpinButton;
+    Gtk::Statusbar m_StatusBar;
     vector<Gtk::Button> m_Button;
 
     Glib::RefPtr<Gtk::Adjustment> m_adjustment_SpinButton;
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
     Glib::ustring getUI();
 
-    unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
-    unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
     unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
+    unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
+    unique_ptr<Gtk::FileChooserDialog> m_pFileChooserDialog;
+    unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
 
-    void help();
-    void update();
-    void menuPopup(int n, double x, double y);
-    void setShape(Shape shape);
-    void setBackground();
-    void cleanDrawArea();
+    bool on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state);
+    void on_menuPopup(int n, double x, double y);
+    void on_menu_help();
     void on_menu_undo();
     void on_menu_redo();
-    void colorChooserDialog_response(int response_id);
-    void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
+    void on_menu_save();
     void info(Glib::ustring message);
 
+    void cleanDrawArea();
+    void setBackground();
+    void dialog_response(int response_id, const Glib::ustring &dialogName);
+
+    void setShape(Shape shape);
     void position(int n, double x, double y);
     void move(double x, double y);
+    void update();
+    void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
 
-    bool moving;
-    bool on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state);
+    void save(string path);
 };
