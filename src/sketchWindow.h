@@ -33,55 +33,57 @@ public:
     virtual ~SketchWin() {};
 
 private:
-    vector<string> labels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse"};
+    vector<string> shapeLabels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse"};
 
-    enum Shape {LINE, POLYLINE, RECTANGLE, CIRCLE, ELLIPSE, NONE};
+    enum ShapeID {LINE, POLYLINE, RECTANGLE, CIRCLE, ELLIPSE, NONE};
 
     struct Point {
         double X, Y;
+
         Point();
         Point(double x, double y);
+
         bool equal(Point p);
-        string str();
+        string txt();
+        string svg();
     };
 
     struct Color {
         float R, G, B, A;
+
         Color();
         Color(float r, float g, float b, float a);
         Color(Gdk::RGBA color);
+
         Gdk::RGBA rgba();
-        string str();
+        string txt();
+        string svg();
     };
 
     struct DrawingElement {
-        Shape shape;
+        ShapeID id;
+        string name;
         vector<Point> points;
 
         float strokeWidth;
         Color strokeColor, fillColor;
 
         DrawingElement();
-        DrawingElement(Shape shape);
-        DrawingElement(Shape shape, vector<Point> points);
+        DrawingElement(ShapeID id);
+        DrawingElement(ShapeID id, string name);
+        DrawingElement(ShapeID id, vector<Point> points);
     };
 
-    unsigned int m_BackUpLimit;
     bool draggingMouse;
+    unsigned int m_BackUpLimit;
 
-    Point m_Cursor;
-    Point m_Ruler;
+    Point m_Cursor, m_Ruler;
     vector<DrawingElement> m_Elements;
-    vector<vector<DrawingElement> > m_Redo;
-    vector<vector<DrawingElement> > m_Undo;
+    vector<vector<DrawingElement> > m_Redo, m_Undo;
 
     Gdk::RGBA m_ColorBackground;
-    Gtk::Box m_HBox;
-    Gtk::Box m_HBox_ColorButtons;
-    Gtk::Box m_VBox;
-    Gtk::Box m_VBox_SidePanel;
-    Gtk::ColorButton m_ColorButton_Fill;
-    Gtk::ColorButton m_ColorButton_Stroke;
+    Gtk::Box m_VBox, m_HBox, m_HBox_ColorButtons, m_VBox_SidePanel;
+    Gtk::ColorButton m_ColorButton_Fill, m_ColorButton_Stroke;
     Gtk::DrawingArea m_DrawingArea;
     Gtk::PopoverMenu m_MenuPopup;
     Gtk::SpinButton m_SpinButton;
@@ -93,8 +95,8 @@ private:
     Glib::ustring getUI();
 
     unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
-    unique_ptr<Gtk::ColorChooserDialog> m_pColorChooserDialog;
-    unique_ptr<Gtk::FileChooserDialog> m_pFileChooserDialog;
+    unique_ptr<Gtk::ColorChooserDialog> m_pColorDialog;
+    unique_ptr<Gtk::FileChooserDialog> m_pFileDialog;
     unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
 
     bool on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state);
@@ -105,11 +107,11 @@ private:
     void on_menu_save();
     void info(Glib::ustring message);
 
-    void cleanDrawArea();
+    void on_menu_clean();
     void setBackground();
     void dialog_response(int response_id, const Glib::ustring &dialogName);
 
-    void setShape(Shape shape);
+    void setShape(ShapeID shape);
     void position(int n, double x, double y);
     void move(double x, double y);
     void update();
