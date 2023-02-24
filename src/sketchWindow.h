@@ -33,9 +33,9 @@ public:
     virtual ~SketchWin() {};
 
 private:
-    vector<string> shapeLabels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse"};
+    vector<string> shapeLabels {"Line", "Polyline", "Rectangle", "Circle", "Ellipse", "Polygon"};
 
-    enum ShapeID {LINE, POLYLINE, RECTANGLE, CIRCLE, ELLIPSE, NONE};
+    enum ShapeID {LINE, POLYLINE, RECTANGLE, CIRCLE, ELLIPSE, POLYGON, NONE};
 
     struct Point {
         double X, Y;
@@ -66,6 +66,7 @@ private:
     struct DrawingElement {
         ShapeID id;
         string name;
+        double value;
         vector<Point> points;
 
         float strokeWidth;
@@ -78,29 +79,29 @@ private:
     };
 
     bool isDragging;
-    unsigned int m_BackUpLimit;
+    unsigned int m_BkpLimit;
 
     Point m_Cursor, m_Ruler;
     vector<DrawingElement> m_Elements;
     vector<vector<DrawingElement> > m_Redo, m_Undo;
 
     Gdk::RGBA m_ColorBackground;
-    Gtk::Box m_VBox, m_HBox, m_HBox_ColorButtons, m_VBox_SidePanel;
-    Gtk::ColorButton m_ColorButton_Fill, m_ColorButton_Stroke;
+    Gtk::Box m_VBox, m_VBox_SidePanel, m_VBox_Attributes;
+    Gtk::Box m_HBox, m_HBox_ColorButtons;
+    Gtk::ColorButton m_ColorBtn_Fill, m_ColorBtn_Stroke;
     Gtk::DrawingArea m_DrawingArea;
     Gtk::PopoverMenu m_MenuPopup;
-    Gtk::SpinButton m_SpinButton;
+    Gtk::SpinButton m_SpinButton_Stroke, m_SpinButton_Step;
     Gtk::Statusbar m_StatusBar;
     vector<Gtk::Button> m_Button;
 
-    Glib::RefPtr<Gtk::Adjustment> m_adjustment_SpinButton;
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
     Glib::ustring getUI();
 
     unique_ptr<Gtk::AboutDialog> m_pAboutDialog;
     unique_ptr<Gtk::ColorChooserDialog> m_pColorDialog;
     unique_ptr<Gtk::FileChooserDialog> m_pFileDialog;
-    unique_ptr<Gtk::MessageDialog> m_pMessageDialog;
+    unique_ptr<Gtk::MessageDialog> m_pMsgDialog;
 
     bool on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state);
     void on_menuPopup(int n, double x, double y);
@@ -115,10 +116,10 @@ private:
     void dialog_response(int response_id, const Glib::ustring &dialogName);
 
     void setShape(ShapeID shape);
-    void position(int n, double x, double y);
-    void move(double x, double y);
-    void update();
-    void on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
+    void setCursorPosition(int n, double x, double y);
+    void setRulerPosition(double x, double y);
+    void updateShapes();
+    void draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height);
 
     void save(string path);
 };

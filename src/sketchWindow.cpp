@@ -59,13 +59,13 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     // Mouse : Right Button
     auto refMouse2 = Gtk::GestureClick::create();
     refMouse2->set_button(GDK_BUTTON_PRIMARY);
-    refMouse2->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::position));
-    refMouse2->signal_released().connect(sigc::mem_fun(*this, &SketchWin::position));
+    refMouse2->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::setCursorPosition));
+    refMouse2->signal_released().connect(sigc::mem_fun(*this, &SketchWin::setCursorPosition));
     m_DrawingArea.add_controller(refMouse2);
 
     auto refMouse3 = Gtk::GestureDrag::create();
     refMouse3->set_button(GDK_BUTTON_PRIMARY);
-    refMouse3->signal_drag_update().connect(sigc::mem_fun(*this, &SketchWin::move));
+    refMouse3->signal_drag_update().connect(sigc::mem_fun(*this, &SketchWin::setRulerPosition));
     m_DrawingArea.add_controller(refMouse3);
 
     // Keyboard
@@ -75,10 +75,10 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     add_controller(controller);
 
     // Message Dialog
-    m_pMessageDialog.reset(new Gtk::MessageDialog(*this, "Info"));
-    m_pMessageDialog->set_modal(true);
-    m_pMessageDialog->set_hide_on_close(true);
-    m_pMessageDialog->signal_response().connect(sigc::hide(sigc::mem_fun(*m_pMessageDialog, &Gtk::Widget::hide)));
+    m_pMsgDialog.reset(new Gtk::MessageDialog(*this, "Info"));
+    m_pMsgDialog->set_modal(true);
+    m_pMsgDialog->set_hide_on_close(true);
+    m_pMsgDialog->signal_response().connect(sigc::hide(sigc::mem_fun(*m_pMsgDialog, &Gtk::Widget::hide)));
 
     // About Dialog
     m_pAboutDialog.reset(new Gtk::AboutDialog);
@@ -102,20 +102,25 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
         m_Button.back().signal_clicked().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::setShape), ShapeID(i)));
     }
 
-    m_ColorButton_Fill.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 0.0));
-    m_ColorButton_Fill.set_visible(true);
-    m_ColorButton_Fill.set_can_focus(false);
-    m_ColorButton_Fill.set_tooltip_text("Fill color");
+    m_ColorBtn_Fill.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 0.0));
+    m_ColorBtn_Fill.set_visible(true);
+    m_ColorBtn_Fill.set_can_focus(false);
+    m_ColorBtn_Fill.set_tooltip_text("Fill color");
 
-    m_ColorButton_Stroke.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 1.0));
-    m_ColorButton_Stroke.set_visible(true);
-    m_ColorButton_Stroke.set_can_focus(false);
-    m_ColorButton_Stroke.set_tooltip_text("Stroke color");
+    m_ColorBtn_Stroke.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 1.0));
+    m_ColorBtn_Stroke.set_visible(true);
+    m_ColorBtn_Stroke.set_can_focus(false);
+    m_ColorBtn_Stroke.set_tooltip_text("Stroke color");
 
-    m_adjustment_SpinButton = Gtk::Adjustment::create(5.0, 1.0, 30.0, 1.0, 5.0, 0.0);
-    m_SpinButton.set_adjustment(m_adjustment_SpinButton);
-    m_SpinButton.set_can_focus(false);
-    m_SpinButton.set_tooltip_text("Stroke width");
+    auto adjustment1 = Gtk::Adjustment::create(5.0, 1.0, 30.0, 1.0, 0.0, 0.0);
+    m_SpinButton_Stroke.set_adjustment(adjustment1);
+    m_SpinButton_Stroke.set_can_focus(false);
+    m_SpinButton_Stroke.set_tooltip_text("Stroke width");
+
+    auto adjustment2 = Gtk::Adjustment::create(3.0, 3.0, 25.0, 1.0, 0.0, 0.0);
+    m_SpinButton_Step.set_adjustment(adjustment2);
+    m_SpinButton_Step.set_can_focus(false);
+    m_SpinButton_Step.set_tooltip_text("Sides");
 
     // Box
     m_VBox.set_orientation(Gtk::Orientation::VERTICAL);
@@ -124,12 +129,15 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     m_HBox.set_homogeneous(false);
     m_VBox_SidePanel.set_orientation(Gtk::Orientation::VERTICAL);
     m_VBox_SidePanel.set_homogeneous(false);
+    m_VBox_Attributes.set_orientation(Gtk::Orientation::VERTICAL);
+    m_VBox_Attributes.set_homogeneous(false);
+    m_VBox_Attributes.set_margin_top(15);
     m_HBox_ColorButtons.set_orientation(Gtk::Orientation::HORIZONTAL);
-    m_HBox_ColorButtons.set_homogeneous(false);
+    m_HBox_ColorButtons.set_homogeneous(true);
 
     // DrawingArea
     m_ColorBackground = Gdk::RGBA(1.0, 1.0, 1.0, 1.0);
-    m_DrawingArea.set_draw_func(sigc::mem_fun(*this, &SketchWin::on_draw));
+    m_DrawingArea.set_draw_func(sigc::mem_fun(*this, &SketchWin::draw));
     m_DrawingArea.set_margin(10);
     m_DrawingArea.set_expand(true);
 
@@ -143,14 +151,17 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     set_default_size(800, 600);
     set_resizable(false);
 
-    m_HBox_ColorButtons.append(m_ColorButton_Fill);
-    m_HBox_ColorButtons.append(m_ColorButton_Stroke);
+    m_HBox_ColorButtons.append(m_ColorBtn_Fill);
+    m_HBox_ColorButtons.append(m_ColorBtn_Stroke);
+
+    m_VBox_Attributes.append(m_SpinButton_Stroke);
+    m_VBox_Attributes.append(m_HBox_ColorButtons);
 
     for (auto &btn : m_Button) {
         m_VBox_SidePanel.append(btn);
     }
-    m_VBox_SidePanel.append(m_SpinButton);
-    m_VBox_SidePanel.append(m_HBox_ColorButtons);
+    m_VBox_SidePanel.append(m_SpinButton_Step);
+    m_VBox_SidePanel.append(m_VBox_Attributes);
 
     m_HBox.append(m_VBox_SidePanel);
     m_HBox.append(m_DrawingArea);
@@ -161,53 +172,8 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     set_child(m_VBox);
 
     // Initialize
-    m_BackUpLimit = 250;
+    m_BkpLimit = 250;
     on_menu_clean();
-}
-
-void SketchWin::on_menu_help()
-{
-    m_pAboutDialog->set_visible(true);
-    m_pAboutDialog->present();
-}
-
-void SketchWin::on_menuPopup(int n, double x, double y)
-{
-    const Gdk::Rectangle rect(x, y, 1, 1);
-    m_MenuPopup.set_pointing_to(rect);
-    m_MenuPopup.popup();
-}
-
-bool SketchWin::on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state)
-{
-    if ((keyval == GDK_KEY_z) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
-        on_menu_undo();
-        m_StatusBar.push("Undo ...");
-    }
-    if ((keyval == GDK_KEY_y) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
-        on_menu_redo();
-        m_StatusBar.push("Redo ...");
-    }
-    if (keyval == GDK_KEY_Escape) {
-        m_StatusBar.push("Escape ...");
-    }
-
-    return false;
-}
-
-void SketchWin::on_menu_clean()
-{
-    for (auto &btn : m_Button) {
-        btn.set_sensitive(true);
-    }
-
-    isDragging = false;
-    m_Elements.clear();
-
-    m_StatusBar.remove_all_messages();
-    m_StatusBar.push("Select a shape to get started.");
-
-    m_DrawingArea.queue_draw();
 }
 
 void SketchWin::setShape(ShapeID id)
@@ -216,31 +182,48 @@ void SketchWin::setShape(ShapeID id)
         btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[id]));
     }
 
+    m_SpinButton_Step.set_visible(id == POLYGON);
     m_Elements.push_back(DrawingElement(id, shapeLabels[id]));
 }
 
-void SketchWin::position(int n, double x, double y)
+void SketchWin::setBackground()
+{
+    if (!m_pColorDialog) {
+        m_pColorDialog.reset(new Gtk::ColorChooserDialog("", *this));
+        m_pColorDialog->set_modal(true);
+        m_pColorDialog->set_hide_on_close(true);
+        m_pColorDialog->signal_response().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::dialog_response), "colorChooserDialog"));
+        m_pColorDialog->set_rgba(m_ColorBackground);
+        m_pColorDialog->show();
+    }
+    else {
+        m_pColorDialog->show();
+    }
+}
+
+void SketchWin::setCursorPosition(int n, double x, double y)
 {
     m_Cursor = Point(x, y);
     isDragging = false;
-    update();
+    updateShapes();
 }
 
-void SketchWin::move(double x, double y)
+void SketchWin::setRulerPosition(double x, double y)
 {
     m_Ruler = Point(m_Cursor.X + x, m_Cursor.Y + y);
     isDragging = true;
-    update();
+    updateShapes();
 }
 
-void SketchWin::update()
+void SketchWin::updateShapes()
 {
     m_StatusBar.remove_all_messages();
 
     if (!m_Elements.empty()) {
-        m_Elements.back().fillColor = m_ColorButton_Fill.get_rgba();
-        m_Elements.back().strokeColor = m_ColorButton_Stroke.get_rgba();
-        m_Elements.back().strokeWidth = m_SpinButton.get_value();
+        m_Elements.back().fillColor = m_ColorBtn_Fill.get_rgba();
+        m_Elements.back().strokeColor = m_ColorBtn_Stroke.get_rgba();
+        m_Elements.back().strokeWidth = m_SpinButton_Stroke.get_value();
+
         if (m_Elements.back().points.empty()) {
             m_Elements.back().points.push_back(m_Cursor);
         }
@@ -249,14 +232,14 @@ void SketchWin::update()
             m_Undo.push_back(m_Elements);
         }
 
-        if (m_Undo.size() > m_BackUpLimit) {
-            m_Undo.erase(m_Undo.begin());
-        }
-        if (m_Redo.size() > m_BackUpLimit) {
-            m_Redo.erase(m_Redo.begin());
-        }
-
         m_StatusBar.push("Point " + to_string(m_Elements.back().points.size()));
+
+        if (m_Elements.back().id == POLYGON) {
+            m_Elements.back().value = 360 / m_SpinButton_Step.get_value();
+        }
+        else {
+            m_Elements.back().value = 0.2;
+        }
 
         if (m_Elements.back().id != POLYLINE) {
             if (m_Elements.back().points.size() == 2) {
@@ -268,48 +251,7 @@ void SketchWin::update()
     m_DrawingArea.queue_draw();
 }
 
-void SketchWin::on_menu_undo()
-{
-    if (!m_Undo.empty()) {
-        m_Redo.push_back(m_Undo.back());
-        m_Undo.pop_back();
-        if (!m_Undo.empty()) {
-            m_Elements = m_Undo.back();
-            if (!m_Elements.back().points.empty()) {
-                m_ColorButton_Fill.set_rgba(m_Elements.back().fillColor.rgba());
-                m_ColorButton_Stroke.set_rgba(m_Elements.back().strokeColor.rgba());
-                m_SpinButton.set_value(m_Elements.back().strokeWidth);
-                for (auto &btn : m_Button) {
-                    btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[m_Elements.back().id]));
-                }
-                position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
-            }
-        }
-        else {
-            on_menu_clean();
-        }
-    }
-}
-
-void SketchWin::on_menu_redo()
-{
-    if (!m_Redo.empty()) {
-        m_Undo.push_back(m_Redo.back());
-        m_Elements = m_Redo.back();
-        if (!m_Elements.back().points.empty()) {
-            m_ColorButton_Fill.set_rgba(m_Elements.back().fillColor.rgba());
-            m_ColorButton_Stroke.set_rgba(m_Elements.back().strokeColor.rgba());
-            m_SpinButton.set_value(m_Elements.back().strokeWidth);
-            for (auto &btn : m_Button) {
-                btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[m_Elements.back().id]));
-            }
-            position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
-        }
-        m_Redo.pop_back();
-    }
-}
-
-void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height)
+void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height)
 {
     // Background
     cr->save();
@@ -317,32 +259,32 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
     cr->paint();
 
     // Shapes
-    for (auto &element : m_Elements) {
+    for (auto &e : m_Elements) {
         cr->scale(1.0, 1.0);
-        if (element.points.size() >= 2) {
-            cr->set_line_width(element.strokeWidth);
-            if (element.id == LINE || element.id == POLYLINE) {
-                Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
-                for (int i = 1; i < element.points.size(); i++) {
-                    cr->move_to(element.points[i - 1].X, element.points[i - 1].Y);
-                    cr->line_to(element.points[i].X, element.points[i].Y);
+        if (e.points.size() >= 2) {
+            cr->set_line_width(e.strokeWidth);
+            if (e.id == LINE || e.id == POLYLINE) {
+                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                for (int i = 1; i < e.points.size(); i++) {
+                    cr->move_to(e.points[i - 1].X, e.points[i - 1].Y);
+                    cr->line_to(e.points[i].X, e.points[i].Y);
                     cr->stroke();
                 }
             }
-            Point p1 = element.points.front();
-            Point p2 = element.points.back();
-            if (element.id == RECTANGLE) {
-                Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
+            Point p1 = e.points.front();
+            Point p2 = e.points.back();
+            if (e.id == RECTANGLE) {
+                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
                 cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
                 cr->stroke();
-                Gdk::Cairo::set_source_rgba(cr, element.fillColor.rgba());
+                Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
                 cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
                 cr->fill();
             }
-            if (element.id == CIRCLE || element.id == ELLIPSE) {
+            if (e.id == CIRCLE || e.id == ELLIPSE) {
                 double rX = p1.length(p2);
                 double rY = p1.length(p2);
-                if (element.id == ELLIPSE) {
+                if (e.id == ELLIPSE) {
                     rX = p1.lengthX(p2);
                     rY = p1.lengthY(p2);
                 }
@@ -353,17 +295,64 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
                     while (angle <= 360) {
                         double x1 = p1.X + rX * cos(angle * numbers::pi / 180);
                         double y1 = p1.Y + rY * sin(angle * numbers::pi / 180);
-                        Gdk::Cairo::set_source_rgba(cr, element.fillColor.rgba());
+                        Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
                         cr->move_to(p1.X, p1.Y);
                         if (i == 0) {
-                            Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
+                            Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
                             cr->move_to(x0, y0);
                         }
                         cr->line_to(x1, y1);
                         cr->stroke();
                         x0 = x1;
                         y0 = y1;
-                        angle += 0.2;
+                        angle += e.value;
+                    }
+                }
+            }
+            if (e.id == POLYGON) {
+                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                int angle = atan((p1.Y - p2.Y) / (p1.X - p2.X)) * 180.0 / numbers::pi;
+                if (p2.X > p1.X && p2.Y == p1.Y) {
+                    angle = 0;
+                }
+                if (p2.X == p1.X && p2.Y < p1.Y) {
+                    angle = 90;
+                }
+                if (p2.X < p1.X && p2.Y == p1.Y) {
+                    angle = 180;
+                }
+                if (p2.X == p1.X && p2.Y < p1.Y) {
+                    angle = 270;
+                }
+                if (p2.X < p1.X && p2.Y > p1.Y) {
+                    angle += 180;
+                }
+                if (p2.X < p1.X && p2.Y < p1.Y) {
+                    angle += 180;
+                }
+                if (p2.X > p1.X && p2.Y < p1.Y) {
+                    angle += 360;
+                }
+                int angle2 = angle;
+                for (unsigned int i = 0; i <= 1; i++) {
+                    angle = angle2;
+                    double x0 = p1.X + p1.length(p2) * cos(angle * numbers::pi / 180);
+                    double y0 = p1.Y + p1.length(p2) * sin(angle * numbers::pi / 180);
+                    int angle1 = angle + 360;
+                    while (angle <= angle1) {
+                        double x1 = p1.X + p1.length(p2) * cos(((angle) * numbers::pi / 180));
+                        double y1 = p1.Y + p1.length(p2) * sin(((angle) * numbers::pi / 180));
+                        Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
+                        cr->move_to(p1.X, p1.Y);
+                        if (i == 0) {
+                            Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                            cr->move_to(x0, y0);
+                        }
+                        cr->line_to(x1, y1);
+                        cr->stroke();
+                        x0 = x1;
+                        y0 = y1;
+                        angle += e.value;
                     }
                 }
             }
@@ -373,34 +362,37 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
     // Ruler
     if (!m_Elements.empty()) {
         if (isDragging) {
-            Point p = m_Elements.back().points.back();
+            auto e = m_Elements.back();
+            Point p = e.points.back();
             Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
             cr->set_line_width(1.0);
-            if (m_Elements.back().id != ELLIPSE) {
+            if (e.id == RECTANGLE) {
+                cr->rectangle(p.X, p.Y, m_Ruler.X - p.X, m_Ruler.Y - p.Y);
+                cr->stroke();
+            }
+            if (e.id == CIRCLE) {
+                cr->arc(p.X, p.Y, p.length(m_Ruler), 0.0, 2 * numbers::pi);
+                cr->stroke();
+            }
+            if (e.id != ELLIPSE) {
                 cr->move_to(p.X, p.Y);
                 cr->line_to(m_Ruler.X, m_Ruler.Y);
                 cr->stroke();
                 cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
-                if (m_Elements.back().id == RECTANGLE) {
-                    cr->rectangle(p.X, p.Y, m_Ruler.X - p.X, m_Ruler.Y - p.Y);
-                    cr->stroke();
-                }
-                if (m_Elements.back().id == CIRCLE) {
-                    cr->arc(p.X, p.Y, p.length(m_Ruler), 0.0, 2 * numbers::pi);
-                    cr->stroke();
-                }
             }
-            if (m_Elements.back().id == ELLIPSE) {
+            if (e.id == ELLIPSE) {
+                double rX = p.lengthX(m_Ruler);
+                double rY = p.lengthY(m_Ruler);
                 cr->move_to(p.X, p.Y);
-                cr->line_to(m_Ruler.X, p.Y);
+                cr->line_to(p.X + rX, p.Y);
                 cr->stroke();
-                cr->arc(m_Ruler.X, p.Y, 5.0, 0.0, 2 * numbers::pi);
+                cr->arc(p.X + rX, p.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
                 cr->move_to(p.X, p.Y);
-                cr->line_to(p.X, m_Ruler.Y);
+                cr->line_to(p.X, p.Y + rY);
                 cr->stroke();
-                cr->arc(p.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
+                cr->arc(p.X, p.Y + rY, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
                 cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
@@ -418,29 +410,150 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
                     angle += 0.2;
                 }
             }
+            if (e.id == POLYGON) {
+                int angle = atan((p.Y - m_Ruler.Y) / (p.X - m_Ruler.X)) * 180.0 / numbers::pi;
+                if (m_Ruler.X > p.X && m_Ruler.Y == p.Y) {
+                    angle = 0;
+                }
+                if (m_Ruler.X == p.X && m_Ruler.Y < p.Y) {
+                    angle = 90;
+                }
+                if (m_Ruler.X < p.X && m_Ruler.Y == p.Y) {
+                    angle = 180;
+                }
+                if (m_Ruler.X == p.X && m_Ruler.Y < p.Y) {
+                    angle = 270;
+                }
+                if (m_Ruler.X < p.X && m_Ruler.Y > p.Y) {
+                    angle += 180;
+                }
+                if (m_Ruler.X < p.X && m_Ruler.Y < p.Y) {
+                    angle += 180;
+                }
+                if (m_Ruler.X > p.X && m_Ruler.Y < p.Y) {
+                    angle += 360;
+                }
+                double x0 = p.X + p.length(m_Ruler) * cos(angle * numbers::pi / 180);
+                double y0 = p.Y + p.length(m_Ruler) * sin(angle * numbers::pi / 180);
+                cr->arc(x0, y0, 5.0, 0.0, 2 * numbers::pi);
+                cr->stroke();
+                int angle1 = angle + 360;
+                while (angle <= angle1) {
+                    double x1 = p.X + p.length(m_Ruler) * cos((angle * numbers::pi / 180));
+                    double y1 = p.Y + p.length(m_Ruler) * sin((angle * numbers::pi / 180));
+                    cr->move_to(x0, y0);
+                    cr->line_to(x1, y1);
+                    cr->stroke();
+                    x0 = x1;
+                    y0 = y1;
+                    angle += e.value;
+                }
+            }
         }
     }
 
     // Cursor
-    Gdk::Cairo::set_source_rgba(cr, m_ColorButton_Stroke.get_rgba());
+    Gdk::Cairo::set_source_rgba(cr, m_ColorBtn_Stroke.get_rgba());
     cr->set_line_width(2.0);
     cr->arc(m_Cursor.X, m_Cursor.Y, 5.0, 0.0, 2 * numbers::pi);
     cr->stroke();
 }
 
-void SketchWin::setBackground()
+void SketchWin::on_menu_help()
 {
-    if (!m_pColorDialog) {
-        m_pColorDialog.reset(new Gtk::ColorChooserDialog("", *this));
-        m_pColorDialog->set_modal(true);
-        m_pColorDialog->set_hide_on_close(true);
-        m_pColorDialog->signal_response().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::dialog_response), "colorChooserDialog"));
-        m_pColorDialog->set_rgba(m_ColorBackground);
-        m_pColorDialog->show();
+    m_pAboutDialog->set_visible(true);
+    m_pAboutDialog->present();
+}
+
+void SketchWin::on_menuPopup(int n, double x, double y)
+{
+    const Gdk::Rectangle rect(x, y, 1, 1);
+    m_MenuPopup.set_pointing_to(rect);
+    m_MenuPopup.popup();
+}
+
+void SketchWin::on_menu_clean()
+{
+    for (auto &btn : m_Button) {
+        btn.set_sensitive(true);
     }
-    else {
-        m_pColorDialog->show();
+    m_SpinButton_Step.set_visible(false);
+
+    isDragging = false;
+    m_Elements.clear();
+
+    m_StatusBar.remove_all_messages();
+    m_StatusBar.push("Select a shape to get started.");
+
+    m_DrawingArea.queue_draw();
+}
+
+void SketchWin::on_menu_undo()
+{
+    if (m_Undo.size() > m_BkpLimit) {
+        m_Undo.erase(m_Undo.begin());
     }
+
+    if (!m_Undo.empty()) {
+        m_Redo.push_back(m_Undo.back());
+        m_Undo.pop_back();
+        if (!m_Undo.empty()) {
+            m_Elements = m_Undo.back();
+            auto e = m_Elements.back();
+            if (!e.points.empty()) {
+                m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
+                m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
+                m_SpinButton_Stroke.set_value(e.strokeWidth);
+                for (auto &btn : m_Button) {
+                    btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
+                }
+                setCursorPosition(0, e.points.back().X, e.points.back().Y);
+            }
+        }
+        else {
+            on_menu_clean();
+        }
+    }
+}
+
+void SketchWin::on_menu_redo()
+{
+    if (m_Redo.size() > m_BkpLimit) {
+        m_Redo.erase(m_Redo.begin());
+    }
+
+    if (!m_Redo.empty()) {
+        m_Undo.push_back(m_Redo.back());
+        m_Elements = m_Redo.back();
+        auto e = m_Elements.back();
+        if (!e.points.empty()) {
+            m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
+            m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
+            m_SpinButton_Stroke.set_value(e.strokeWidth);
+            for (auto &btn : m_Button) {
+                btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
+            }
+            setCursorPosition(0, e.points.back().X, e.points.back().Y);
+        }
+        m_Redo.pop_back();
+    }
+}
+
+bool SketchWin::on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType state)
+{
+    if ((keyval == GDK_KEY_z) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
+        on_menu_undo();
+        m_StatusBar.push("Undo ...");
+    }
+    if ((keyval == GDK_KEY_y) && (state & (Gdk::ModifierType::SHIFT_MASK | Gdk::ModifierType::CONTROL_MASK | Gdk::ModifierType::ALT_MASK)) == Gdk::ModifierType::CONTROL_MASK) {
+        on_menu_redo();
+        m_StatusBar.push("Redo ...");
+    }
+    if (keyval == GDK_KEY_Escape) {
+        m_StatusBar.push("Escape ...");
+    }
+
+    return false;
 }
 
 void SketchWin::on_menu_save()
@@ -562,9 +675,9 @@ SketchWin::DrawingElement::DrawingElement(ShapeID id, vector<Point> points)
 
 void SketchWin::info(Glib::ustring message)
 {
-    m_pMessageDialog->set_secondary_text(message);
-    m_pMessageDialog->set_visible(true);
-    m_pMessageDialog->present();
+    m_pMsgDialog->set_secondary_text(message);
+    m_pMsgDialog->set_visible(true);
+    m_pMsgDialog->present();
 }
 
 void SketchWin::save(string path)
@@ -574,11 +687,11 @@ void SketchWin::save(string path)
     string text = "";
     if (extension == ".txt" || extension == ".TXT") {
         for (auto &element : m_Elements) {
-            text += "\n\nShape: " + shapeLabels[element.id];
-            text += "\nFill Color: " + element.fillColor.txt();
-            text += "\nStroke Color: " + element.fillColor.txt();
-            text += "\nStroke Width:" + to_string(element.strokeWidth);
             if (!element.points.empty()) {
+                text += "\n\nShape: " + shapeLabels[element.id];
+                text += "\nFill Color: " + element.fillColor.txt();
+                text += "\nStroke Color: " + element.fillColor.txt();
+                text += "\nStroke Width:" + to_string(element.strokeWidth);
                 text += "\nPoints:";
                 for (auto &p : element.points) {
                     text +=  p.txt() + " ";
