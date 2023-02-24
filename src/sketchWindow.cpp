@@ -22,8 +22,8 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     add_action("new", sigc::mem_fun(*this, &SketchWin::on_menu_clean));
     add_action("undo", sigc::mem_fun(*this, &SketchWin::on_menu_undo));
     add_action("redo", sigc::mem_fun(*this, &SketchWin::on_menu_redo));
-    add_action("exportTxt", sigc::mem_fun(*this, &SketchWin::on_menu_save));
-    add_action("exportSvg", sigc::mem_fun(*this, &SketchWin::on_menu_save));
+    add_action("saveTxt", sigc::mem_fun(*this, &SketchWin::on_menu_save));
+    add_action("saveSvg", sigc::mem_fun(*this, &SketchWin::on_menu_save));
     add_action("about", sigc::mem_fun(*this, &SketchWin::on_menu_help));
 
     // MenuPopup
@@ -42,31 +42,31 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
         m_MenuPopup.set_menu_model(gmenu);
         m_MenuPopup.set_has_arrow(false);
 
-        auto refActionGroup = Gio::SimpleActionGroup::create();
-        refActionGroup->add_action("colorBkg", sigc::mem_fun(*this, &SketchWin::setBackground));
-        refActionGroup->add_action("clean", sigc::mem_fun(*this, &SketchWin::on_menu_clean));
-        refActionGroup->add_action("undo", sigc::mem_fun(*this, &SketchWin::on_menu_undo));
-        refActionGroup->add_action("redo", sigc::mem_fun(*this, &SketchWin::on_menu_redo));
-        insert_action_group("popup", refActionGroup);
+        auto refActGrp = Gio::SimpleActionGroup::create();
+        refActGrp->add_action("colorBkg", sigc::mem_fun(*this, &SketchWin::setBackground));
+        refActGrp->add_action("clean", sigc::mem_fun(*this, &SketchWin::on_menu_clean));
+        refActGrp->add_action("undo", sigc::mem_fun(*this, &SketchWin::on_menu_undo));
+        refActGrp->add_action("redo", sigc::mem_fun(*this, &SketchWin::on_menu_redo));
+        insert_action_group("popup", refActGrp);
 
         // Mouse : Left Button
-        auto refGesture1 = Gtk::GestureClick::create();
-        refGesture1->set_button(GDK_BUTTON_SECONDARY);
-        refGesture1->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::on_menuPopup));
-        m_DrawingArea.add_controller(refGesture1);
+        auto refMouse1 = Gtk::GestureClick::create();
+        refMouse1->set_button(GDK_BUTTON_SECONDARY);
+        refMouse1->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::on_menuPopup));
+        m_DrawingArea.add_controller(refMouse1);
     }
 
     // Mouse : Right Button
-    auto refGesture2 = Gtk::GestureClick::create();
-    refGesture2->set_button(GDK_BUTTON_PRIMARY);
-    refGesture2->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::position));
-    refGesture2->signal_released().connect(sigc::mem_fun(*this, &SketchWin::position));
-    m_DrawingArea.add_controller(refGesture2);
+    auto refMouse2 = Gtk::GestureClick::create();
+    refMouse2->set_button(GDK_BUTTON_PRIMARY);
+    refMouse2->signal_pressed().connect(sigc::mem_fun(*this, &SketchWin::position));
+    refMouse2->signal_released().connect(sigc::mem_fun(*this, &SketchWin::position));
+    m_DrawingArea.add_controller(refMouse2);
 
-    auto refGesture3 = Gtk::GestureDrag::create();
-    refGesture3->set_button(GDK_BUTTON_PRIMARY);
-    refGesture3->signal_drag_update().connect(sigc::mem_fun(*this, &SketchWin::move));
-    m_DrawingArea.add_controller(refGesture3);
+    auto refMouse3 = Gtk::GestureDrag::create();
+    refMouse3->set_button(GDK_BUTTON_PRIMARY);
+    refMouse3->signal_drag_update().connect(sigc::mem_fun(*this, &SketchWin::move));
+    m_DrawingArea.add_controller(refMouse3);
 
     // Keyboard
     auto controller = Gtk::EventControllerKey::create();
@@ -201,7 +201,7 @@ void SketchWin::on_menu_clean()
         btn.set_sensitive(true);
     }
 
-    draggingMouse = false;
+    isDragging = false;
     m_Elements.clear();
 
     m_StatusBar.remove_all_messages();
@@ -213,8 +213,7 @@ void SketchWin::on_menu_clean()
 void SketchWin::setShape(ShapeID id)
 {
     for (auto &btn : m_Button) {
-        string s = btn.get_label();
-        btn.set_sensitive(!(s == shapeLabels[id]));
+        btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[id]));
     }
 
     m_Elements.push_back(DrawingElement(id, shapeLabels[id]));
@@ -223,14 +222,14 @@ void SketchWin::setShape(ShapeID id)
 void SketchWin::position(int n, double x, double y)
 {
     m_Cursor = Point(x, y);
-    draggingMouse = false;
+    isDragging = false;
     update();
 }
 
 void SketchWin::move(double x, double y)
 {
-    draggingMouse = true;
     m_Ruler = Point(m_Cursor.X + x, m_Cursor.Y + y);
+    isDragging = true;
     update();
 }
 
@@ -258,18 +257,10 @@ void SketchWin::update()
         }
 
         m_StatusBar.push("Point " + to_string(m_Elements.back().points.size()));
-        if (m_Elements.back().points.size() == 2) {
-            switch (m_Elements.back().id) {
-            case LINE:
-            case RECTANGLE:
-            case CIRCLE:
-            case ELLIPSE:
-                if (m_Elements.back().points.size() == 2) {
-                    m_Elements.push_back(DrawingElement(m_Elements.back().id));
-                }
-                break;
-            default:
-                break;
+
+        if (m_Elements.back().id != POLYLINE) {
+            if (m_Elements.back().points.size() == 2) {
+                m_Elements.push_back(DrawingElement(m_Elements.back().id));
             }
         }
     }
@@ -289,8 +280,7 @@ void SketchWin::on_menu_undo()
                 m_ColorButton_Stroke.set_rgba(m_Elements.back().strokeColor.rgba());
                 m_SpinButton.set_value(m_Elements.back().strokeWidth);
                 for (auto &btn : m_Button) {
-                    string s = btn.get_label();
-                    btn.set_sensitive(!(s == shapeLabels[m_Elements.back().id]));
+                    btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[m_Elements.back().id]));
                 }
                 position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
             }
@@ -311,8 +301,7 @@ void SketchWin::on_menu_redo()
             m_ColorButton_Stroke.set_rgba(m_Elements.back().strokeColor.rgba());
             m_SpinButton.set_value(m_Elements.back().strokeWidth);
             for (auto &btn : m_Button) {
-                string s = btn.get_label();
-                btn.set_sensitive(!(s == shapeLabels[m_Elements.back().id]));
+                btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[m_Elements.back().id]));
             }
             position(0, m_Elements.back().points.back().X, m_Elements.back().points.back().Y);
         }
@@ -331,7 +320,6 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
     for (auto &element : m_Elements) {
         cr->scale(1.0, 1.0);
         if (element.points.size() >= 2) {
-
             cr->set_line_width(element.strokeWidth);
             if (element.id == LINE || element.id == POLYLINE) {
                 Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
@@ -341,38 +329,32 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
                     cr->stroke();
                 }
             }
-
-            Point first = element.points.front();
-            Point second = element.points.back();
-            double radius = sqrt(pow((first.X - second.X), 2) + pow((first.Y - second.Y), 2));
-            double dX = max(first.X, second.X) - min(first.X, second.X);
-            double dY = max(first.Y, second.Y) - min(first.Y, second.Y);
-
+            Point p1 = element.points.front();
+            Point p2 = element.points.back();
             if (element.id == RECTANGLE) {
                 Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
-                cr->rectangle(first.X, first.Y, dX, dY);
+                cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
                 cr->stroke();
                 Gdk::Cairo::set_source_rgba(cr, element.fillColor.rgba());
-                cr->rectangle(first.X, first.Y, dX, dY);
+                cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
                 cr->fill();
             }
             if (element.id == CIRCLE || element.id == ELLIPSE) {
-                double radiusX = radius;
-                double radiusY = radius;
+                double rX = p1.length(p2);
+                double rY = p1.length(p2);
                 if (element.id == ELLIPSE) {
-                    radiusX = dX;
-                    radiusY = dY;
+                    rX = p1.lengthX(p2);
+                    rY = p1.lengthY(p2);
                 }
                 for (unsigned int i = 0; i <= 1; i++) {
-                    double x0 = first.X + radiusX * cos(0);
-                    double y0 = first.Y + radiusY * sin(0);
+                    double x0 = p1.X + rX * cos(0);
+                    double y0 = p1.Y + rY * sin(0);
                     double angle = 0;
-                    double step = 0.2;
                     while (angle <= 360) {
-                        double x1 = first.X + radiusX * cos(angle * numbers::pi / 180);
-                        double y1 = first.Y + radiusY * sin(angle * numbers::pi / 180);
+                        double x1 = p1.X + rX * cos(angle * numbers::pi / 180);
+                        double y1 = p1.Y + rY * sin(angle * numbers::pi / 180);
                         Gdk::Cairo::set_source_rgba(cr, element.fillColor.rgba());
-                        cr->move_to(first.X, first.Y);
+                        cr->move_to(p1.X, p1.Y);
                         if (i == 0) {
                             Gdk::Cairo::set_source_rgba(cr, element.strokeColor.rgba());
                             cr->move_to(x0, y0);
@@ -381,7 +363,7 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
                         cr->stroke();
                         x0 = x1;
                         y0 = y1;
-                        angle += step;
+                        angle += 0.2;
                     }
                 }
             }
@@ -390,57 +372,50 @@ void SketchWin::on_draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int 
 
     // Ruler
     if (!m_Elements.empty()) {
-        if (draggingMouse) {
+        if (isDragging) {
             Point p = m_Elements.back().points.back();
-            double radius = sqrt(pow((p.X - m_Ruler.X), 2) + pow((p.Y - m_Ruler.Y), 2));
-            double dX = max(p.X, m_Ruler.X) - min(p.X, m_Ruler.X);
-            double dY = max(p.Y, m_Ruler.Y) - min(p.Y, m_Ruler.Y);
+            Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
+            cr->set_line_width(1.0);
             if (m_Elements.back().id != ELLIPSE) {
-                Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
-                cr->set_line_width(1.0);
                 cr->move_to(p.X, p.Y);
                 cr->line_to(m_Ruler.X, m_Ruler.Y);
                 cr->stroke();
-                cr->set_line_width(2.0);
                 cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
                 if (m_Elements.back().id == RECTANGLE) {
-                    cr->rectangle(p.X, p.Y, dX, dY);
+                    cr->rectangle(p.X, p.Y, m_Ruler.X - p.X, m_Ruler.Y - p.Y);
                     cr->stroke();
                 }
                 if (m_Elements.back().id == CIRCLE) {
-                    cr->arc(p.X, p.Y, radius, 0.0, 2 * numbers::pi);
+                    cr->arc(p.X, p.Y, p.length(m_Ruler), 0.0, 2 * numbers::pi);
                     cr->stroke();
                 }
             }
             if (m_Elements.back().id == ELLIPSE) {
-                Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
-                cr->set_line_width(1.0);
                 cr->move_to(p.X, p.Y);
                 cr->line_to(m_Ruler.X, p.Y);
                 cr->stroke();
-                cr->set_line_width(2.0);
                 cr->arc(m_Ruler.X, p.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
                 cr->move_to(p.X, p.Y);
                 cr->line_to(p.X, m_Ruler.Y);
                 cr->stroke();
-                cr->set_line_width(2.0);
                 cr->arc(p.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
                 cr->stroke();
+                cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
+                cr->stroke();
                 double angle = 0;
-                double step = 0.2;
-                double x0 = p.X + dX * cos(0);
-                double y0 = p.Y + dY * sin(0);
+                double x0 = p.X + p.lengthX(m_Ruler) * cos(0);
+                double y0 = p.Y + p.lengthY(m_Ruler) * sin(0);
                 while (angle <= 360) {
-                    double x1 = p.X + dX * cos(angle * numbers::pi / 180);
-                    double y1 = p.Y + dY * sin(angle * numbers::pi / 180);
+                    double x1 = p.X + p.lengthX(m_Ruler) * cos(angle * numbers::pi / 180);
+                    double y1 = p.Y + p.lengthY(m_Ruler) * sin(angle * numbers::pi / 180);
                     cr->move_to(x0, y0);
                     cr->line_to(x1, y1);
                     cr->stroke();
                     x0 = x1;
                     y0 = y1;
-                    angle += step;
+                    angle += 0.2;
                 }
             }
         }
@@ -521,9 +496,29 @@ bool SketchWin::Point::equal(Point p)
     return X == p.X && Y == p.Y;
 }
 
+double SketchWin::Point::length(Point p)
+{
+    return sqrt(pow((X - p.X), 2) + pow((Y - p.Y), 2));
+}
+
+double SketchWin::Point::lengthX(Point p)
+{
+    return max(X, p.X) - min(X, p.X);
+}
+
+double SketchWin::Point::lengthY(Point p)
+{
+    return max(Y, p.Y) - min(Y, p.Y);
+}
+
 string SketchWin::Point::txt()
 {
-    return to_string(X) + "," + to_string(Y);
+    return "(" + to_string(X) + "," + to_string(Y) + ")";
+}
+
+string SketchWin::Point::svg()
+{
+    return to_string(X) + " " + to_string(Y);
 }
 
 SketchWin::Color::Color()

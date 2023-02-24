@@ -45,9 +45,9 @@ void SketchApp::create_window()
     auto win = new SketchWin();
     add_window(*win);
     win->signal_hide().connect(
-        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->signal_destroy().connect(
-        sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
+                sigc::bind(sigc::mem_fun(*this, &SketchApp::destroy_window), win));
     win->set_show_menubar(true);
     win->show();
 }
@@ -85,11 +85,11 @@ Glib::ustring SketchApp::getUI()
         "        <section>"
         "          <item>"
         "            <attribute name='label' translatable='yes'>.TXT</attribute>"
-        "            <attribute name='action'>win.exportTxt</attribute>"
+        "            <attribute name='action'>win.saveTxt</attribute>"
         "          </item>"
         "          <item>"
         "            <attribute name='label' translatable='yes'>.SVG</attribute>"
-        "            <attribute name='action'>win.exportSvg</attribute>"
+        "            <attribute name='action'>win.saveSvg</attribute>"
         "          </item>"
         "        </section>"
         "      </submenu>"

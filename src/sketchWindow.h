@@ -44,6 +44,9 @@ private:
         Point(double x, double y);
 
         bool equal(Point p);
+        double length(Point p);
+        double lengthX(Point p);
+        double lengthY(Point p);
         string txt();
         string svg();
     };
@@ -74,7 +77,7 @@ private:
         DrawingElement(ShapeID id, vector<Point> points);
     };
 
-    bool draggingMouse;
+    bool isDragging;
     unsigned int m_BackUpLimit;
 
     Point m_Cursor, m_Ruler;
