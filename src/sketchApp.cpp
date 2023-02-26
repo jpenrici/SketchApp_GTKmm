@@ -3,8 +3,6 @@
 
 #include <iostream>
 
-using namespace std;
-
 SketchApp::SketchApp() : Gtk::Application("org.gtkmm.SketchApp") {}
 
 Glib::RefPtr<SketchApp> SketchApp::create()
@@ -25,7 +23,7 @@ void SketchApp::on_startup()
         m_refBuilder->add_from_string(getUI());
     }
     catch (const Glib::Error &ex) {
-        cerr << "Error: " << ex.what();
+        std::cerr << "Error: " << ex.what();
     }
 
     auto object = m_refBuilder->get_object("menu");
@@ -59,7 +57,7 @@ void SketchApp::quit()
 {
     quit();
 
-    vector<Gtk::Window *> windows = get_windows();
+    std::vector<Gtk::Window *> windows = get_windows();
     if (windows.size() > 0) {
         windows[0]->hide();
     }

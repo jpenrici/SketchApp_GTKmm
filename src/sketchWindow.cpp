@@ -14,8 +14,6 @@
 #include <iostream>
 #include <math.h>
 
-using namespace std;
-
 SketchWin::SketchWin() : Gtk::ApplicationWindow()
 {
     // Menu - Action
@@ -32,7 +30,7 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
         m_refBuilder->add_from_string(getUI());
     }
     catch (const Glib::Error &ex) {
-        cerr << "Error: " << ex.what();
+        std::cerr << "Error: " << ex.what();
     }
 
     auto object = m_refBuilder->get_object("menupopup");
@@ -181,7 +179,7 @@ void SketchWin::setShape(ShapeID id)
     m_SpinBtn_Step.set_visible(id == POLYGON);
 
     for (auto &btn : m_Btn) {
-        btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[id]));
+        btn.set_sensitive(!(std::string(btn.get_label()) == shapeLabels[id]));
     }
 
     m_Elements.push_back(DrawingElement(id, shapeLabels[id]));
@@ -233,7 +231,7 @@ void SketchWin::updateShapes()
             m_Undo.push_back(m_Elements);
         }
 
-        m_StatusBar.push("Point " + to_string(m_Elements.back().points.size()));
+        m_StatusBar.push("Point " + std::to_string(m_Elements.back().points.size()));
 
         if (m_Elements.back().id == POLYGON) {
             m_Elements.back().value = 360 / m_SpinBtn_Step.get_value();
@@ -245,7 +243,17 @@ void SketchWin::updateShapes()
         if (m_Elements.back().id != POLYLINE) {
             if (m_Elements.back().points.size() == 2) {
                 if (m_Elements.back().id == POLYGON) {
-
+                    Point p1 = m_Elements.back().points.front();
+                    Point p2 = m_Elements.back().points.back();
+                    int angle = 360 + p1.angle(p2);
+                    double rX = p1.length(m_Ruler);
+                    double rY = p1.length(m_Ruler);
+                    while (angle > 0) {
+                        Point p = Point(p1.X + rX * cos(angle * std::numbers::pi / 180),
+                                        p1.Y + rY * sin(angle * std::numbers::pi / 180));
+                        m_Elements.back().points.push_back(p);
+                        angle -= m_Elements.back().value;
+                    }
                 }
                 m_Elements.push_back(DrawingElement(m_Elements.back().id));
             }
@@ -269,17 +277,17 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
     };
 
     auto arc = [&cr](Point p, double r, bool fill = false) {
-        cr->arc(p.X, p.Y, r, 0.0, 2 * numbers::pi);
+        cr->arc(p.X, p.Y, r, 0.0, 2 * std::numbers::pi);
         if (fill) { cr->fill(); } else { cr->stroke(); }
     };
 
     auto circle = [&cr](Point p, int angle, double rX, double rY, double step, bool fill = false) {
         angle += 360;
-        double x0 = p.X + rX * cos(angle * numbers::pi / 180);
-        double y0 = p.Y + rY * sin(angle * numbers::pi / 180);
+        double x0 = p.X + rX * cos(angle * std::numbers::pi / 180);
+        double y0 = p.Y + rY * sin(angle * std::numbers::pi / 180);
         while (angle > 0) {
-            double x1 = p.X + rX * cos(angle * numbers::pi / 180);
-            double y1 = p.Y + rY * sin(angle * numbers::pi / 180);
+            double x1 = p.X + rX * cos(angle * std::numbers::pi / 180);
+            double y1 = p.Y + rY * sin(angle * std::numbers::pi / 180);
             cr->move_to(p.X, p.Y);
             if (!fill) { cr->move_to(x0, y0); }
             cr->line_to(x1, y1);
@@ -305,26 +313,27 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
                 for (int i = 1; i < e.points.size(); i++) {
                     line(e.points[i - 1], e.points[i]);
                 }
-            }
-            Point p1 = e.points.front();
-            Point p2 = e.points.back();
-            if (e.id == RECTANGLE) {
-                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                rectangle(p1, p1.lengthX(p2), p1.lengthY(p2));
-                Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
-                rectangle(p1, p1.lengthX(p2), p1.lengthY(p2), true);
-            }
-            if (e.id == CIRCLE || e.id == ELLIPSE) {
-                double rX = (e.id == ELLIPSE) ? p1.lengthX(p2) : p1.length(p2);
-                double rY = (e.id == ELLIPSE) ? p1.lengthY(p2) : p1.length(p2);
-                Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
-                circle(p1, 0, rX, rY, e.value, true);
-                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                circle(p1, 0, rX, rY, e.value);
-            }
-            if (e.id == POLYGON) {
-                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                circle(p1, p1.angle(p2), p1.length(p2), p1.length(p2), e.value);
+            } else {
+                Point p1 = e.points[0];
+                Point p2 = e.points[1];
+                if (e.id == RECTANGLE) {
+                    Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                    rectangle(p1, p1.lengthX(p2), p1.lengthY(p2));
+                    Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
+                    rectangle(p1, p1.lengthX(p2), p1.lengthY(p2), true);
+                }
+                if (e.id == CIRCLE || e.id == ELLIPSE) {
+                    double rX = (e.id == ELLIPSE) ? p1.lengthX(p2) : p1.length(p2);
+                    double rY = (e.id == ELLIPSE) ? p1.lengthY(p2) : p1.length(p2);
+                    Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
+                    circle(p1, 0, rX, rY, e.value, true);
+                    Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                    circle(p1, 0, rX, rY, e.value);
+                }
+                if (e.id == POLYGON) {
+                    Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                    circle(p1, p1.angle(p2), p1.length(p2), p1.length(p2), e.value);
+                }
             }
         }
     }
@@ -422,8 +431,9 @@ void SketchWin::on_menu_undo()
                 m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
                 m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
                 m_SpinBtn_Stroke.set_value(e.strokeWidth);
+                m_SpinBtn_Step.set_value(360 / e.value);
                 for (auto &btn : m_Btn) {
-                    btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
+                    btn.set_sensitive(!(std::string(btn.get_label()) == shapeLabels[e.id]));
                 }
                 setCursorPosition(0, e.points.back().X, e.points.back().Y);
             }
@@ -448,8 +458,9 @@ void SketchWin::on_menu_redo()
             m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
             m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
             m_SpinBtn_Stroke.set_value(e.strokeWidth);
+            m_SpinBtn_Step.set_value(360 / e.value);
             for (auto &btn : m_Btn) {
-                btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
+                btn.set_sensitive(!(std::string(btn.get_label()) == shapeLabels[e.id]));
             }
             setCursorPosition(0, e.points.back().X, e.points.back().Y);
         }
@@ -530,7 +541,7 @@ bool SketchWin::Point::equal(Point p)
 
 int SketchWin::Point::angle(Point p)
 {
-    int angle = atan((Y - p.Y) / (X - p.X)) * 180.0 / numbers::pi;
+    int angle = atan((Y - p.Y) / (X - p.X)) * 180.0 / std::numbers::pi;
     if (p.X >  X && p.Y == Y) { angle = 0; }
     if (p.X == X && p.Y <  Y) { angle = 90; }
     if (p.X <  X && p.Y == Y) { angle = 180; }
@@ -548,22 +559,22 @@ double SketchWin::Point::length(Point p)
 
 double SketchWin::Point::lengthX(Point p)
 {
-    return max(X, p.X) - min(X, p.X);
+    return fmax(X, p.X) - fmin(X, p.X);
 }
 
 double SketchWin::Point::lengthY(Point p)
 {
-    return max(Y, p.Y) - min(Y, p.Y);
+    return fmax(Y, p.Y) - fmin(Y, p.Y);
 }
 
-string SketchWin::Point::txt()
+std::string SketchWin::Point::txt()
 {
     return "(" + svg() + ")";
 }
 
-string SketchWin::Point::svg()
+std::string SketchWin::Point::svg()
 {
-    return to_string(X) + " " + to_string(Y);
+    return std::to_string(X) + " " + std::to_string(Y);
 }
 
 SketchWin::Color::Color()
@@ -588,10 +599,10 @@ Gdk::RGBA SketchWin::Color::rgba()
     return Gdk::RGBA(R, G, B, A);
 }
 
-string SketchWin::Color::txt()
+std::string SketchWin::Color::txt()
 {
-    return {to_string(int(R * 255)) + "," + to_string(int(G * 255)) + ","
-                + to_string(int(B * 255)) + "," + to_string(int(A * 255))};
+    return {std::to_string(int(R * 255)) + "," + std::to_string(int(G * 255)) + ","
+                + std::to_string(int(B * 255)) + "," + std::to_string(int(A * 255))};
 }
 
 SketchWin::DrawingElement::DrawingElement()
@@ -600,10 +611,10 @@ SketchWin::DrawingElement::DrawingElement()
 SketchWin::DrawingElement::DrawingElement(ShapeID id)
     : id(id), points({}) {}
 
-SketchWin::DrawingElement::DrawingElement(ShapeID id, string name)
+SketchWin::DrawingElement::DrawingElement(ShapeID id, std::string name)
     : id(id), name(name), points({}) {}
 
-SketchWin::DrawingElement::DrawingElement(ShapeID id, vector<Point> points)
+SketchWin::DrawingElement::DrawingElement(ShapeID id, std::vector<Point> points)
     : id(id), points(points) {}
 
 void SketchWin::info(Glib::ustring message)
@@ -613,22 +624,45 @@ void SketchWin::info(Glib::ustring message)
     m_pMsgDialog->present();
 }
 
-void SketchWin::save(string path)
+void SketchWin::save(std::string path)
 {
-    string extension = filesystem::path(path).extension();
+    std::string extension = std::filesystem::path(path).extension();
 
-    string text = "";
+    std::string text = "";
     if (extension == ".txt" || extension == ".TXT") {
         for (auto &e : m_Elements) {
             if (e.id != NONE) {
-                if (!e.points.empty()) {
+                if (e.points.size() >= 2) {
                     text += "\nShape: " + shapeLabels[e.id];
                     text += "\nFill Color: " + e.fillColor.txt();
                     text += "\nStroke Color: " + e.strokeColor.txt();
-                    text += "\nStroke Width: " + to_string(e.strokeWidth);
-                    text += "\nPoints:";
-                    for (auto &p : e.points) {
-                        text +=  p.txt() + " ";
+                    text += "\nStroke Width: " + std::to_string(e.strokeWidth);
+                    if (e.id == LINE) {
+                        text += "\nLength: " + std::to_string(e.points[0].length(e.points[1]));
+                    }
+                    if (e.id == RECTANGLE) {
+                        text += "\nWidth: " + std::to_string(e.points[0].lengthX(e.points[1]));
+                        text += "\nHeight: " + std::to_string(e.points[0].lengthY(e.points[1]));
+                        text += "\nPoints: " + e.points[0].txt() + Point(e.points[1].X, e.points[0].Y).txt()
+                                + e.points[1].txt() + Point(e.points[0].X, e.points[1].Y).txt();
+                    }
+                    if (e.id == CIRCLE || e.id == ELLIPSE) {
+                        text += "\nRadius X: " + std::to_string(e.points[0].lengthX(e.points[1]));
+                        text += "\nRadius Y: " + std::to_string(e.points[0].lengthY(e.points[1]));
+                        text += "\nCenter : " + e.points[0].txt();
+                    }
+                    if (e.id == LINE || e.id == POLYLINE) {
+                        text += "\nPoints: ";
+                        for (auto &p : e.points) {
+                            text +=  p.txt() + " ";
+                        }
+                    }
+                    if (e.id == POLYGON) {
+                        text += "\nCenter: " + e.points[0].txt();
+                        text += "\nPoints: ";
+                        for (size_t i = 1; i < e.points.size(); i++) {
+                            text +=  e.points[i].txt() + " ";
+                        }
                     }
                     text += "\n";
                 }
@@ -643,8 +677,8 @@ void SketchWin::save(string path)
 
     if (!text.empty()) {
         try {
-            fstream fileout;
-            fileout.open(path, ios::out);
+            std::fstream fileout;
+            fileout.open(path, std::ios::out);
             fileout << text;
             fileout.close();
             m_StatusBar.push("Save in " + path);
