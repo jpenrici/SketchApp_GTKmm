@@ -44,6 +44,7 @@ private:
         Point(double x, double y);
 
         bool equal(Point p);
+        int angle(Point p);
         double length(Point p);
         double lengthX(Point p);
         double lengthY(Point p);
@@ -111,7 +112,7 @@ private:
     void on_menu_save();
     void info(Glib::ustring message);
 
-    void on_menu_clean();
+    void on_menu_clean(bool all);
     void setBackground();
     void dialog_response(int response_id, const Glib::ustring &dialogName);
 

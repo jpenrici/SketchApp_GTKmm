@@ -19,7 +19,7 @@ using namespace std;
 SketchWin::SketchWin() : Gtk::ApplicationWindow()
 {
     // Menu - Action
-    add_action("new", sigc::mem_fun(*this, &SketchWin::on_menu_clean));
+    add_action("new", sigc::bind(sigc::mem_fun(*this, &SketchWin::on_menu_clean), true));
     add_action("undo", sigc::mem_fun(*this, &SketchWin::on_menu_undo));
     add_action("redo", sigc::mem_fun(*this, &SketchWin::on_menu_redo));
     add_action("saveTxt", sigc::mem_fun(*this, &SketchWin::on_menu_save));
@@ -44,7 +44,7 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
 
         auto refActGrp = Gio::SimpleActionGroup::create();
         refActGrp->add_action("colorBkg", sigc::mem_fun(*this, &SketchWin::setBackground));
-        refActGrp->add_action("clean", sigc::mem_fun(*this, &SketchWin::on_menu_clean));
+        refActGrp->add_action("clean", sigc::bind(sigc::mem_fun(*this, &SketchWin::on_menu_clean), true));
         refActGrp->add_action("undo", sigc::mem_fun(*this, &SketchWin::on_menu_undo));
         refActGrp->add_action("redo", sigc::mem_fun(*this, &SketchWin::on_menu_redo));
         insert_action_group("popup", refActGrp);
@@ -173,16 +173,17 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
 
     // Initialize
     m_BkpLimit = 250;
-    on_menu_clean();
+    on_menu_clean(true);
 }
 
 void SketchWin::setShape(ShapeID id)
 {
+    m_SpinBtn_Step.set_visible(id == POLYGON);
+
     for (auto &btn : m_Btn) {
         btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[id]));
     }
 
-    m_SpinBtn_Step.set_visible(id == POLYGON);
     m_Elements.push_back(DrawingElement(id, shapeLabels[id]));
 }
 
@@ -243,6 +244,9 @@ void SketchWin::updateShapes()
 
         if (m_Elements.back().id != POLYLINE) {
             if (m_Elements.back().points.size() == 2) {
+                if (m_Elements.back().id == POLYGON) {
+
+                }
                 m_Elements.push_back(DrawingElement(m_Elements.back().id));
             }
         }
@@ -253,32 +257,6 @@ void SketchWin::updateShapes()
 
 void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height)
 {
-    auto getAngle = [](Point p1, Point p2) {
-        int angle = atan((p1.Y - p2.Y) / (p1.X - p2.X)) * 180.0 / numbers::pi;
-        if (p2.X > p1.X && p2.Y == p1.Y) {
-            angle = 0;
-        }
-        if (p2.X == p1.X && p2.Y < p1.Y) {
-            angle = 90;
-        }
-        if (p2.X < p1.X && p2.Y == p1.Y) {
-            angle = 180;
-        }
-        if (p2.X == p1.X && p2.Y < p1.Y) {
-            angle = 270;
-        }
-        if (p2.X < p1.X && p2.Y > p1.Y) {
-            angle += 180;
-        }
-        if (p2.X < p1.X && p2.Y < p1.Y) {
-            angle += 180;
-        }
-        if (p2.X > p1.X && p2.Y < p1.Y) {
-            angle += 360;
-        }
-        return angle;
-    };
-
     auto line = [&cr](Point p1, Point p2) {
         cr->move_to(p1.X, p1.Y);
         cr->line_to(p2.X, p2.Y);
@@ -287,35 +265,23 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
 
     auto rectangle = [&cr](Point p, double width, double height, bool fill = false) {
         cr->rectangle(p.X, p.Y, width, height);
-        if (fill) {
-            cr->fill();
-        }
-        else {
-            cr->stroke();
-        }
+        if (fill) { cr->fill(); } else { cr->stroke(); }
     };
 
     auto arc = [&cr](Point p, double r, bool fill = false) {
         cr->arc(p.X, p.Y, r, 0.0, 2 * numbers::pi);
-        if (fill) {
-            cr->fill();
-        }
-        else {
-            cr->stroke();
-        }
+        if (fill) { cr->fill(); } else { cr->stroke(); }
     };
 
     auto circle = [&cr](Point p, int angle, double rX, double rY, double step, bool fill = false) {
+        angle += 360;
         double x0 = p.X + rX * cos(angle * numbers::pi / 180);
         double y0 = p.Y + rY * sin(angle * numbers::pi / 180);
-        angle += 360;
         while (angle > 0) {
             double x1 = p.X + rX * cos(angle * numbers::pi / 180);
             double y1 = p.Y + rY * sin(angle * numbers::pi / 180);
             cr->move_to(p.X, p.Y);
-            if (!fill) {
-                cr->move_to(x0, y0);
-            }
+            if (!fill) { cr->move_to(x0, y0); }
             cr->line_to(x1, y1);
             cr->stroke();
             x0 = x1;
@@ -358,7 +324,7 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
             }
             if (e.id == POLYGON) {
                 Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                circle(p1, getAngle(p1, p2), p1.length(p2), p1.length(p2), e.value);
+                circle(p1, p1.angle(p2), p1.length(p2), p1.length(p2), e.value);
             }
         }
     }
@@ -376,14 +342,14 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
             if (e.id == CIRCLE) {
                 arc(p, p.length(m_Ruler));
             }
-            if (e.id != ELLIPSE) {
+            if (e.id != ELLIPSE && e.id != NONE) {
                 line(p, m_Ruler);
                 arc(m_Ruler, 5.0);
             }
 
             double rX = (e.id == ELLIPSE) ? p.lengthX(m_Ruler) : p.length(m_Ruler);
             double rY = (e.id == ELLIPSE) ? p.lengthY(m_Ruler) : p.length(m_Ruler);
-            double angle = (e.id == ELLIPSE) ? 0.0 : getAngle(p, m_Ruler);
+            double angle = (e.id == ELLIPSE) ? 0.0 : p.angle(m_Ruler);
             double step = (e.id == ELLIPSE) ? 0.2 : e.value;
             if (e.id == ELLIPSE) {
                 line(Point(p.X, p.Y), Point(p.X + rX, p.Y));
@@ -417,7 +383,7 @@ void SketchWin::on_menuPopup(int n, double x, double y)
     m_MenuPopup.popup();
 }
 
-void SketchWin::on_menu_clean()
+void SketchWin::on_menu_clean(bool all)
 {
     for (auto &btn : m_Btn) {
         btn.set_sensitive(true);
@@ -425,7 +391,14 @@ void SketchWin::on_menu_clean()
     m_SpinBtn_Step.set_visible(false);
 
     isDragging = false;
-    m_Elements.clear();
+
+    if (!m_Elements.empty()) {
+        if (all) {
+            m_Elements.clear();
+        } else {
+            m_Elements.back().id = NONE;
+        }
+    }
 
     m_StatusBar.remove_all_messages();
     m_StatusBar.push("Select a shape to get started.");
@@ -456,7 +429,7 @@ void SketchWin::on_menu_undo()
             }
         }
         else {
-            on_menu_clean();
+            on_menu_clean(true);
         }
     }
 }
@@ -495,6 +468,7 @@ bool SketchWin::on_key_pressed(guint keyval, guint keycode, Gdk::ModifierType st
         m_StatusBar.push("Redo ...");
     }
     if (keyval == GDK_KEY_Escape) {
+        on_menu_clean(false);
         m_StatusBar.push("Escape ...");
     }
 
@@ -554,6 +528,19 @@ bool SketchWin::Point::equal(Point p)
     return X == p.X && Y == p.Y;
 }
 
+int SketchWin::Point::angle(Point p)
+{
+    int angle = atan((Y - p.Y) / (X - p.X)) * 180.0 / numbers::pi;
+    if (p.X >  X && p.Y == Y) { angle = 0; }
+    if (p.X == X && p.Y <  Y) { angle = 90; }
+    if (p.X <  X && p.Y == Y) { angle = 180; }
+    if (p.X == X && p.Y <  Y) { angle = 270; }
+    if (p.X <  X && p.Y >  Y) { angle += 180; }
+    if (p.X <  X && p.Y <  Y) { angle += 180; }
+    if (p.X >  X && p.Y <  Y) { angle += 360; }
+    return angle;
+}
+
 double SketchWin::Point::length(Point p)
 {
     return sqrt(pow((X - p.X), 2) + pow((Y - p.Y), 2));
@@ -571,7 +558,7 @@ double SketchWin::Point::lengthY(Point p)
 
 string SketchWin::Point::txt()
 {
-    return "(" + to_string(X) + "," + to_string(Y) + ")";
+    return "(" + svg() + ")";
 }
 
 string SketchWin::Point::svg()
@@ -603,7 +590,8 @@ Gdk::RGBA SketchWin::Color::rgba()
 
 string SketchWin::Color::txt()
 {
-    return to_string(R) + "," + to_string(G) + "," + to_string(B) + "," + to_string(A);
+    return {to_string(int(R * 255)) + "," + to_string(int(G * 255)) + ","
+                + to_string(int(B * 255)) + "," + to_string(int(A * 255))};
 }
 
 SketchWin::DrawingElement::DrawingElement()
@@ -631,15 +619,18 @@ void SketchWin::save(string path)
 
     string text = "";
     if (extension == ".txt" || extension == ".TXT") {
-        for (auto &element : m_Elements) {
-            if (!element.points.empty()) {
-                text += "\n\nShape: " + shapeLabels[element.id];
-                text += "\nFill Color: " + element.fillColor.txt();
-                text += "\nStroke Color: " + element.fillColor.txt();
-                text += "\nStroke Width:" + to_string(element.strokeWidth);
-                text += "\nPoints:";
-                for (auto &p : element.points) {
-                    text +=  p.txt() + " ";
+        for (auto &e : m_Elements) {
+            if (e.id != NONE) {
+                if (!e.points.empty()) {
+                    text += "\nShape: " + shapeLabels[e.id];
+                    text += "\nFill Color: " + e.fillColor.txt();
+                    text += "\nStroke Color: " + e.strokeColor.txt();
+                    text += "\nStroke Width: " + to_string(e.strokeWidth);
+                    text += "\nPoints:";
+                    for (auto &p : e.points) {
+                        text +=  p.txt() + " ";
+                    }
+                    text += "\n";
                 }
             }
         }
