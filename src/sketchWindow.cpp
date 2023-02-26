@@ -96,10 +96,10 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
 
     // Button
     for (unsigned int i = 0; i < shapeLabels.size(); i++) {
-        m_Button.push_back(Gtk::Button(shapeLabels[i]));
-        m_Button.back().set_visible(true);
-        m_Button.back().set_can_focus(false);
-        m_Button.back().signal_clicked().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::setShape), ShapeID(i)));
+        m_Btn.push_back(Gtk::Button(shapeLabels[i]));
+        m_Btn.back().set_visible(true);
+        m_Btn.back().set_can_focus(false);
+        m_Btn.back().signal_clicked().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::setShape), ShapeID(i)));
     }
 
     m_ColorBtn_Fill.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 0.0));
@@ -113,14 +113,14 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     m_ColorBtn_Stroke.set_tooltip_text("Stroke color");
 
     auto adjustment1 = Gtk::Adjustment::create(5.0, 1.0, 30.0, 1.0, 0.0, 0.0);
-    m_SpinButton_Stroke.set_adjustment(adjustment1);
-    m_SpinButton_Stroke.set_can_focus(false);
-    m_SpinButton_Stroke.set_tooltip_text("Stroke width");
+    m_SpinBtn_Stroke.set_adjustment(adjustment1);
+    m_SpinBtn_Stroke.set_can_focus(false);
+    m_SpinBtn_Stroke.set_tooltip_text("Stroke width");
 
     auto adjustment2 = Gtk::Adjustment::create(3.0, 3.0, 25.0, 1.0, 0.0, 0.0);
-    m_SpinButton_Step.set_adjustment(adjustment2);
-    m_SpinButton_Step.set_can_focus(false);
-    m_SpinButton_Step.set_tooltip_text("Sides");
+    m_SpinBtn_Step.set_adjustment(adjustment2);
+    m_SpinBtn_Step.set_can_focus(false);
+    m_SpinBtn_Step.set_tooltip_text("Sides");
 
     // Box
     m_VBox.set_orientation(Gtk::Orientation::VERTICAL);
@@ -132,11 +132,11 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     m_VBox_Attributes.set_orientation(Gtk::Orientation::VERTICAL);
     m_VBox_Attributes.set_homogeneous(false);
     m_VBox_Attributes.set_margin_top(15);
-    m_HBox_ColorButtons.set_orientation(Gtk::Orientation::HORIZONTAL);
-    m_HBox_ColorButtons.set_homogeneous(true);
+    m_HBox_ColorBtn.set_orientation(Gtk::Orientation::HORIZONTAL);
+    m_HBox_ColorBtn.set_homogeneous(true);
 
     // DrawingArea
-    m_ColorBackground = Gdk::RGBA(1.0, 1.0, 1.0, 1.0);
+    m_ColorBkg = Gdk::RGBA(1.0, 1.0, 1.0, 1.0);
     m_DrawingArea.set_draw_func(sigc::mem_fun(*this, &SketchWin::draw));
     m_DrawingArea.set_margin(10);
     m_DrawingArea.set_expand(true);
@@ -151,16 +151,16 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
     set_default_size(800, 600);
     set_resizable(false);
 
-    m_HBox_ColorButtons.append(m_ColorBtn_Fill);
-    m_HBox_ColorButtons.append(m_ColorBtn_Stroke);
+    m_HBox_ColorBtn.append(m_ColorBtn_Fill);
+    m_HBox_ColorBtn.append(m_ColorBtn_Stroke);
 
-    m_VBox_Attributes.append(m_SpinButton_Stroke);
-    m_VBox_Attributes.append(m_HBox_ColorButtons);
+    m_VBox_Attributes.append(m_SpinBtn_Stroke);
+    m_VBox_Attributes.append(m_HBox_ColorBtn);
 
-    for (auto &btn : m_Button) {
+    for (auto &btn : m_Btn) {
         m_VBox_SidePanel.append(btn);
     }
-    m_VBox_SidePanel.append(m_SpinButton_Step);
+    m_VBox_SidePanel.append(m_SpinBtn_Step);
     m_VBox_SidePanel.append(m_VBox_Attributes);
 
     m_HBox.append(m_VBox_SidePanel);
@@ -178,11 +178,11 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
 
 void SketchWin::setShape(ShapeID id)
 {
-    for (auto &btn : m_Button) {
+    for (auto &btn : m_Btn) {
         btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[id]));
     }
 
-    m_SpinButton_Step.set_visible(id == POLYGON);
+    m_SpinBtn_Step.set_visible(id == POLYGON);
     m_Elements.push_back(DrawingElement(id, shapeLabels[id]));
 }
 
@@ -193,7 +193,7 @@ void SketchWin::setBackground()
         m_pColorDialog->set_modal(true);
         m_pColorDialog->set_hide_on_close(true);
         m_pColorDialog->signal_response().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::dialog_response), "colorChooserDialog"));
-        m_pColorDialog->set_rgba(m_ColorBackground);
+        m_pColorDialog->set_rgba(m_ColorBkg);
         m_pColorDialog->show();
     }
     else {
@@ -222,7 +222,7 @@ void SketchWin::updateShapes()
     if (!m_Elements.empty()) {
         m_Elements.back().fillColor = m_ColorBtn_Fill.get_rgba();
         m_Elements.back().strokeColor = m_ColorBtn_Stroke.get_rgba();
-        m_Elements.back().strokeWidth = m_SpinButton_Stroke.get_value();
+        m_Elements.back().strokeWidth = m_SpinBtn_Stroke.get_value();
 
         if (m_Elements.back().points.empty()) {
             m_Elements.back().points.push_back(m_Cursor);
@@ -235,7 +235,7 @@ void SketchWin::updateShapes()
         m_StatusBar.push("Point " + to_string(m_Elements.back().points.size()));
 
         if (m_Elements.back().id == POLYGON) {
-            m_Elements.back().value = 360 / m_SpinButton_Step.get_value();
+            m_Elements.back().value = 360 / m_SpinBtn_Step.get_value();
         }
         else {
             m_Elements.back().value = 0.2;
@@ -253,9 +253,80 @@ void SketchWin::updateShapes()
 
 void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int height)
 {
+    auto getAngle = [](Point p1, Point p2) {
+        int angle = atan((p1.Y - p2.Y) / (p1.X - p2.X)) * 180.0 / numbers::pi;
+        if (p2.X > p1.X && p2.Y == p1.Y) {
+            angle = 0;
+        }
+        if (p2.X == p1.X && p2.Y < p1.Y) {
+            angle = 90;
+        }
+        if (p2.X < p1.X && p2.Y == p1.Y) {
+            angle = 180;
+        }
+        if (p2.X == p1.X && p2.Y < p1.Y) {
+            angle = 270;
+        }
+        if (p2.X < p1.X && p2.Y > p1.Y) {
+            angle += 180;
+        }
+        if (p2.X < p1.X && p2.Y < p1.Y) {
+            angle += 180;
+        }
+        if (p2.X > p1.X && p2.Y < p1.Y) {
+            angle += 360;
+        }
+        return angle;
+    };
+
+    auto line = [&cr](Point p1, Point p2) {
+        cr->move_to(p1.X, p1.Y);
+        cr->line_to(p2.X, p2.Y);
+        cr->stroke();
+    };
+
+    auto rectangle = [&cr](Point p, double width, double height, bool fill = false) {
+        cr->rectangle(p.X, p.Y, width, height);
+        if (fill) {
+            cr->fill();
+        }
+        else {
+            cr->stroke();
+        }
+    };
+
+    auto arc = [&cr](Point p, double r, bool fill = false) {
+        cr->arc(p.X, p.Y, r, 0.0, 2 * numbers::pi);
+        if (fill) {
+            cr->fill();
+        }
+        else {
+            cr->stroke();
+        }
+    };
+
+    auto circle = [&cr](Point p, int angle, double rX, double rY, double step, bool fill = false) {
+        double x0 = p.X + rX * cos(angle * numbers::pi / 180);
+        double y0 = p.Y + rY * sin(angle * numbers::pi / 180);
+        angle += 360;
+        while (angle > 0) {
+            double x1 = p.X + rX * cos(angle * numbers::pi / 180);
+            double y1 = p.Y + rY * sin(angle * numbers::pi / 180);
+            cr->move_to(p.X, p.Y);
+            if (!fill) {
+                cr->move_to(x0, y0);
+            }
+            cr->line_to(x1, y1);
+            cr->stroke();
+            x0 = x1;
+            y0 = y1;
+            angle -= step;
+        }
+    };
+
     // Background
     cr->save();
-    Gdk::Cairo::set_source_rgba(cr, m_ColorBackground);
+    Gdk::Cairo::set_source_rgba(cr, m_ColorBkg);
     cr->paint();
 
     // Shapes
@@ -266,95 +337,28 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
             if (e.id == LINE || e.id == POLYLINE) {
                 Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
                 for (int i = 1; i < e.points.size(); i++) {
-                    cr->move_to(e.points[i - 1].X, e.points[i - 1].Y);
-                    cr->line_to(e.points[i].X, e.points[i].Y);
-                    cr->stroke();
+                    line(e.points[i - 1], e.points[i]);
                 }
             }
             Point p1 = e.points.front();
             Point p2 = e.points.back();
             if (e.id == RECTANGLE) {
                 Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
-                cr->stroke();
+                rectangle(p1, p1.lengthX(p2), p1.lengthY(p2));
                 Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
-                cr->rectangle(p1.X, p1.Y, p1.lengthX(p2), p1.lengthY(p2));
-                cr->fill();
+                rectangle(p1, p1.lengthX(p2), p1.lengthY(p2), true);
             }
             if (e.id == CIRCLE || e.id == ELLIPSE) {
-                double rX = p1.length(p2);
-                double rY = p1.length(p2);
-                if (e.id == ELLIPSE) {
-                    rX = p1.lengthX(p2);
-                    rY = p1.lengthY(p2);
-                }
-                for (unsigned int i = 0; i <= 1; i++) {
-                    double x0 = p1.X + rX * cos(0);
-                    double y0 = p1.Y + rY * sin(0);
-                    double angle = 0;
-                    while (angle <= 360) {
-                        double x1 = p1.X + rX * cos(angle * numbers::pi / 180);
-                        double y1 = p1.Y + rY * sin(angle * numbers::pi / 180);
-                        Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
-                        cr->move_to(p1.X, p1.Y);
-                        if (i == 0) {
-                            Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                            cr->move_to(x0, y0);
-                        }
-                        cr->line_to(x1, y1);
-                        cr->stroke();
-                        x0 = x1;
-                        y0 = y1;
-                        angle += e.value;
-                    }
-                }
+                double rX = (e.id == ELLIPSE) ? p1.lengthX(p2) : p1.length(p2);
+                double rY = (e.id == ELLIPSE) ? p1.lengthY(p2) : p1.length(p2);
+                Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
+                circle(p1, 0, rX, rY, e.value, true);
+                Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
+                circle(p1, 0, rX, rY, e.value);
             }
             if (e.id == POLYGON) {
                 Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                int angle = atan((p1.Y - p2.Y) / (p1.X - p2.X)) * 180.0 / numbers::pi;
-                if (p2.X > p1.X && p2.Y == p1.Y) {
-                    angle = 0;
-                }
-                if (p2.X == p1.X && p2.Y < p1.Y) {
-                    angle = 90;
-                }
-                if (p2.X < p1.X && p2.Y == p1.Y) {
-                    angle = 180;
-                }
-                if (p2.X == p1.X && p2.Y < p1.Y) {
-                    angle = 270;
-                }
-                if (p2.X < p1.X && p2.Y > p1.Y) {
-                    angle += 180;
-                }
-                if (p2.X < p1.X && p2.Y < p1.Y) {
-                    angle += 180;
-                }
-                if (p2.X > p1.X && p2.Y < p1.Y) {
-                    angle += 360;
-                }
-                int angle2 = angle;
-                for (unsigned int i = 0; i <= 1; i++) {
-                    angle = angle2;
-                    double x0 = p1.X + p1.length(p2) * cos(angle * numbers::pi / 180);
-                    double y0 = p1.Y + p1.length(p2) * sin(angle * numbers::pi / 180);
-                    int angle1 = angle + 360;
-                    while (angle <= angle1) {
-                        double x1 = p1.X + p1.length(p2) * cos(((angle) * numbers::pi / 180));
-                        double y1 = p1.Y + p1.length(p2) * sin(((angle) * numbers::pi / 180));
-                        Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
-                        cr->move_to(p1.X, p1.Y);
-                        if (i == 0) {
-                            Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
-                            cr->move_to(x0, y0);
-                        }
-                        cr->line_to(x1, y1);
-                        cr->stroke();
-                        x0 = x1;
-                        y0 = y1;
-                        angle += e.value;
-                    }
-                }
+                circle(p1, getAngle(p1, p2), p1.length(p2), p1.length(p2), e.value);
             }
         }
     }
@@ -367,87 +371,29 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
             Gdk::Cairo::set_source_rgba(cr, Gdk::RGBA(1.0, 0.0, 0.0, 0.5));
             cr->set_line_width(1.0);
             if (e.id == RECTANGLE) {
-                cr->rectangle(p.X, p.Y, m_Ruler.X - p.X, m_Ruler.Y - p.Y);
-                cr->stroke();
+                rectangle(p, m_Ruler.X - p.X, m_Ruler.Y - p.Y);
             }
             if (e.id == CIRCLE) {
-                cr->arc(p.X, p.Y, p.length(m_Ruler), 0.0, 2 * numbers::pi);
-                cr->stroke();
+                arc(p, p.length(m_Ruler));
             }
             if (e.id != ELLIPSE) {
-                cr->move_to(p.X, p.Y);
-                cr->line_to(m_Ruler.X, m_Ruler.Y);
-                cr->stroke();
-                cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
-                cr->stroke();
+                line(p, m_Ruler);
+                arc(m_Ruler, 5.0);
             }
+
+            double rX = (e.id == ELLIPSE) ? p.lengthX(m_Ruler) : p.length(m_Ruler);
+            double rY = (e.id == ELLIPSE) ? p.lengthY(m_Ruler) : p.length(m_Ruler);
+            double angle = (e.id == ELLIPSE) ? 0.0 : getAngle(p, m_Ruler);
+            double step = (e.id == ELLIPSE) ? 0.2 : e.value;
             if (e.id == ELLIPSE) {
-                double rX = p.lengthX(m_Ruler);
-                double rY = p.lengthY(m_Ruler);
-                cr->move_to(p.X, p.Y);
-                cr->line_to(p.X + rX, p.Y);
-                cr->stroke();
-                cr->arc(p.X + rX, p.Y, 5.0, 0.0, 2 * numbers::pi);
-                cr->stroke();
-                cr->move_to(p.X, p.Y);
-                cr->line_to(p.X, p.Y + rY);
-                cr->stroke();
-                cr->arc(p.X, p.Y + rY, 5.0, 0.0, 2 * numbers::pi);
-                cr->stroke();
-                cr->arc(m_Ruler.X, m_Ruler.Y, 5.0, 0.0, 2 * numbers::pi);
-                cr->stroke();
-                double angle = 0;
-                double x0 = p.X + p.lengthX(m_Ruler) * cos(0);
-                double y0 = p.Y + p.lengthY(m_Ruler) * sin(0);
-                while (angle <= 360) {
-                    double x1 = p.X + p.lengthX(m_Ruler) * cos(angle * numbers::pi / 180);
-                    double y1 = p.Y + p.lengthY(m_Ruler) * sin(angle * numbers::pi / 180);
-                    cr->move_to(x0, y0);
-                    cr->line_to(x1, y1);
-                    cr->stroke();
-                    x0 = x1;
-                    y0 = y1;
-                    angle += 0.2;
-                }
+                line(Point(p.X, p.Y), Point(p.X + rX, p.Y));
+                arc(Point(p.X + rX, p.Y), 5.0);
+                line(Point(p.X, p.Y), Point(p.X, p.Y + rY));
+                arc(Point(p.X, p.Y + rY), 5.0);
+                arc(m_Ruler, 5.0);
             }
-            if (e.id == POLYGON) {
-                int angle = atan((p.Y - m_Ruler.Y) / (p.X - m_Ruler.X)) * 180.0 / numbers::pi;
-                if (m_Ruler.X > p.X && m_Ruler.Y == p.Y) {
-                    angle = 0;
-                }
-                if (m_Ruler.X == p.X && m_Ruler.Y < p.Y) {
-                    angle = 90;
-                }
-                if (m_Ruler.X < p.X && m_Ruler.Y == p.Y) {
-                    angle = 180;
-                }
-                if (m_Ruler.X == p.X && m_Ruler.Y < p.Y) {
-                    angle = 270;
-                }
-                if (m_Ruler.X < p.X && m_Ruler.Y > p.Y) {
-                    angle += 180;
-                }
-                if (m_Ruler.X < p.X && m_Ruler.Y < p.Y) {
-                    angle += 180;
-                }
-                if (m_Ruler.X > p.X && m_Ruler.Y < p.Y) {
-                    angle += 360;
-                }
-                double x0 = p.X + p.length(m_Ruler) * cos(angle * numbers::pi / 180);
-                double y0 = p.Y + p.length(m_Ruler) * sin(angle * numbers::pi / 180);
-                cr->arc(x0, y0, 5.0, 0.0, 2 * numbers::pi);
-                cr->stroke();
-                int angle1 = angle + 360;
-                while (angle <= angle1) {
-                    double x1 = p.X + p.length(m_Ruler) * cos((angle * numbers::pi / 180));
-                    double y1 = p.Y + p.length(m_Ruler) * sin((angle * numbers::pi / 180));
-                    cr->move_to(x0, y0);
-                    cr->line_to(x1, y1);
-                    cr->stroke();
-                    x0 = x1;
-                    y0 = y1;
-                    angle += e.value;
-                }
+            if (e.id == ELLIPSE || e.id == POLYGON) {
+                circle(p, angle, rX, rY, step);
             }
         }
     }
@@ -455,8 +401,7 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
     // Cursor
     Gdk::Cairo::set_source_rgba(cr, m_ColorBtn_Stroke.get_rgba());
     cr->set_line_width(2.0);
-    cr->arc(m_Cursor.X, m_Cursor.Y, 5.0, 0.0, 2 * numbers::pi);
-    cr->stroke();
+    arc(m_Cursor, 5.0);
 }
 
 void SketchWin::on_menu_help()
@@ -474,10 +419,10 @@ void SketchWin::on_menuPopup(int n, double x, double y)
 
 void SketchWin::on_menu_clean()
 {
-    for (auto &btn : m_Button) {
+    for (auto &btn : m_Btn) {
         btn.set_sensitive(true);
     }
-    m_SpinButton_Step.set_visible(false);
+    m_SpinBtn_Step.set_visible(false);
 
     isDragging = false;
     m_Elements.clear();
@@ -503,8 +448,8 @@ void SketchWin::on_menu_undo()
             if (!e.points.empty()) {
                 m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
                 m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
-                m_SpinButton_Stroke.set_value(e.strokeWidth);
-                for (auto &btn : m_Button) {
+                m_SpinBtn_Stroke.set_value(e.strokeWidth);
+                for (auto &btn : m_Btn) {
                     btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
                 }
                 setCursorPosition(0, e.points.back().X, e.points.back().Y);
@@ -529,8 +474,8 @@ void SketchWin::on_menu_redo()
         if (!e.points.empty()) {
             m_ColorBtn_Fill.set_rgba(e.fillColor.rgba());
             m_ColorBtn_Stroke.set_rgba(e.strokeColor.rgba());
-            m_SpinButton_Stroke.set_value(e.strokeWidth);
-            for (auto &btn : m_Button) {
+            m_SpinBtn_Stroke.set_value(e.strokeWidth);
+            for (auto &btn : m_Btn) {
                 btn.set_sensitive(!(string(btn.get_label()) == shapeLabels[e.id]));
             }
             setCursorPosition(0, e.points.back().X, e.points.back().Y);
@@ -583,7 +528,7 @@ void SketchWin::dialog_response(int response_id, const Glib::ustring &dialogName
     if (dialogName == "colorChooserDialog") {
         m_pColorDialog->hide();
         if (response_id == Gtk::ResponseType::OK) {
-            m_ColorBackground = m_pColorDialog->get_rgba();
+            m_ColorBkg = m_pColorDialog->get_rgba();
             m_DrawingArea.queue_draw();
         }
     }

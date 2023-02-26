@@ -85,15 +85,15 @@ private:
     vector<DrawingElement> m_Elements;
     vector<vector<DrawingElement> > m_Redo, m_Undo;
 
-    Gdk::RGBA m_ColorBackground;
+    Gdk::RGBA m_ColorBkg;
     Gtk::Box m_VBox, m_VBox_SidePanel, m_VBox_Attributes;
-    Gtk::Box m_HBox, m_HBox_ColorButtons;
+    Gtk::Box m_HBox, m_HBox_ColorBtn;
     Gtk::ColorButton m_ColorBtn_Fill, m_ColorBtn_Stroke;
     Gtk::DrawingArea m_DrawingArea;
     Gtk::PopoverMenu m_MenuPopup;
-    Gtk::SpinButton m_SpinButton_Stroke, m_SpinButton_Step;
+    Gtk::SpinButton m_SpinBtn_Stroke, m_SpinBtn_Step;
     Gtk::Statusbar m_StatusBar;
-    vector<Gtk::Button> m_Button;
+    vector<Gtk::Button> m_Btn;
 
     Glib::RefPtr<Gtk::Builder> m_refBuilder;
     Glib::ustring getUI();
