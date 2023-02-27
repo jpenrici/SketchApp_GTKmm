@@ -46,8 +46,6 @@ private:
         double length(Point p);
         double lengthX(Point p);
         double lengthY(Point p);
-        std::string txt();
-        std::string svg();
     };
 
     struct Color {
@@ -58,8 +56,7 @@ private:
         Color(Gdk::RGBA color);
 
         Gdk::RGBA rgba();
-        std::string txt();
-        std::string svg();
+        std::string txt(bool rgba);
     };
 
     struct DrawingElement {

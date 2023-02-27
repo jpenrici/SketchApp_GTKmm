@@ -9,10 +9,12 @@
 #include <gtkmm-4.0/gtkmm/gestureclick.h>
 #include <gtkmm-4.0/gtkmm/gesturedrag.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <string>
 
 SketchWin::SketchWin() : Gtk::ApplicationWindow()
 {
@@ -567,16 +569,6 @@ double SketchWin::Point::lengthY(Point p)
     return fmax(Y, p.Y) - fmin(Y, p.Y);
 }
 
-std::string SketchWin::Point::txt()
-{
-    return "(" + svg() + ")";
-}
-
-std::string SketchWin::Point::svg()
-{
-    return std::to_string(X) + " " + std::to_string(Y);
-}
-
 SketchWin::Color::Color()
     : R(0.0), G(0.0), B(0.0), A(1.0) {}
 
@@ -599,10 +591,10 @@ Gdk::RGBA SketchWin::Color::rgba()
     return Gdk::RGBA(R, G, B, A);
 }
 
-std::string SketchWin::Color::txt()
+std::string SketchWin::Color::txt(bool rgba = true)
 {
-    return {std::to_string(int(R * 255)) + "," + std::to_string(int(G * 255)) + ","
-                + std::to_string(int(B * 255)) + "," + std::to_string(int(A * 255))};
+    std::string r = std::to_string(int(R * 255)) + "," + std::to_string(int(G * 255)) + "," + std::to_string(int(B * 255));
+    return (rgba ? r + "," + std::to_string(int(A * 255)) : r);
 }
 
 SketchWin::DrawingElement::DrawingElement()
@@ -626,6 +618,19 @@ void SketchWin::info(Glib::ustring message)
 
 void SketchWin::save(std::string path)
 {
+    auto num2str = [](double value) {
+        std::stringstream v;
+        v << std::fixed << std::setprecision(2) << value;
+        std::string r = v.str();
+        std::replace(r.begin(), r.end(), ',', '.');
+        return r;
+    };
+
+    auto point2str = [&num2str](Point p, bool parentheses = true) {
+        std::string r = num2str(p.X) + "," + num2str(p.Y);
+        return (parentheses ? "(" + r + ")" : r);
+    };
+
     std::string extension = std::filesystem::path(path).extension();
 
     std::string text = "";
@@ -636,32 +641,32 @@ void SketchWin::save(std::string path)
                     text += "\nShape: " + shapeLabels[e.id];
                     text += "\nFill Color: " + e.fillColor.txt();
                     text += "\nStroke Color: " + e.strokeColor.txt();
-                    text += "\nStroke Width: " + std::to_string(e.strokeWidth);
+                    text += "\nStroke Width: " + num2str(e.strokeWidth);
                     if (e.id == LINE) {
-                        text += "\nLength: " + std::to_string(e.points[0].length(e.points[1]));
+                        text += "\nLength: " + num2str(e.points[0].length(e.points[1]));
                     }
                     if (e.id == RECTANGLE) {
-                        text += "\nWidth: " + std::to_string(e.points[0].lengthX(e.points[1]));
-                        text += "\nHeight: " + std::to_string(e.points[0].lengthY(e.points[1]));
-                        text += "\nPoints: " + e.points[0].txt() + Point(e.points[1].X, e.points[0].Y).txt()
-                                + e.points[1].txt() + Point(e.points[0].X, e.points[1].Y).txt();
+                        text += "\nWidth: " + num2str(e.points[0].lengthX(e.points[1]));
+                        text += "\nHeight: " + num2str(e.points[0].lengthY(e.points[1]));
+                        text += "\nPoints: " + point2str(e.points[0]) + point2str(Point(e.points[1].X, e.points[0].Y))
+                                + point2str(e.points[1]) + point2str(Point(e.points[0].X, e.points[1].Y));
                     }
                     if (e.id == CIRCLE || e.id == ELLIPSE) {
-                        text += "\nRadius X: " + std::to_string(e.points[0].lengthX(e.points[1]));
-                        text += "\nRadius Y: " + std::to_string(e.points[0].lengthY(e.points[1]));
-                        text += "\nCenter : " + e.points[0].txt();
+                        text += "\nRadius X: " + num2str(e.points[0].lengthX(e.points[1]));
+                        text += "\nRadius Y: " + num2str(e.points[0].lengthY(e.points[1]));
+                        text += "\nCenter : " + point2str(e.points[0]);
                     }
                     if (e.id == LINE || e.id == POLYLINE) {
                         text += "\nPoints: ";
-                        for (auto &p : e.points) {
-                            text +=  p.txt() + " ";
+                        for (const auto &p : e.points) {
+                            text +=  point2str(p);
                         }
                     }
                     if (e.id == POLYGON) {
-                        text += "\nCenter: " + e.points[0].txt();
+                        text += "\nCenter: " + point2str(e.points[0]);
                         text += "\nPoints: ";
                         for (size_t i = 1; i < e.points.size(); i++) {
-                            text +=  e.points[i].txt() + " ";
+                            text +=  point2str(e.points[i]);
                         }
                     }
                     text += "\n";
@@ -672,6 +677,44 @@ void SketchWin::save(std::string path)
 
     if (extension == ".svg" || extension == ".SVG") {
         text = "<svg>\n";
+        for (auto &e : m_Elements) {
+            if (e.id != NONE) {
+                if (e.points.size() >= 2) {
+                    std::string fillColor = e.fillColor.txt(false);
+                    std::string style = "style=\"stroke:rgb(" + e.strokeColor.txt(false) + ");stroke-width:"
+                            + num2str(e.strokeWidth) + "\" />";
+                    if (e.id == LINE) {
+                        text += "<line x1=\"" + num2str(e.points[0].X) + "\" y1=\"" + num2str(e.points[0].Y)
+                                + "\" x2=\"" + num2str(e.points[1].X) + "\" y2=\"" + num2str(e.points[1].Y) + "\"\n" + style;
+                    }
+                    if (e.id == RECTANGLE) {
+                        text += "<rect x=\"" + num2str(e.points[0].X) + "\" y=\"" + num2str(e.points[0].Y)
+                                + "\" width=\"" + num2str(e.points[0].lengthX(e.points[1])) +
+                                "\" height=\"" + num2str(e.points[0].lengthY(e.points[1])) + "\"\n" + style;
+                    }
+                    if (e.id == CIRCLE || e.id == ELLIPSE) {
+                        text += "<ellipse cx=\"" + num2str(e.points[0].X) + "\" cy=\"" + num2str(e.points[0].Y)
+                                + "\" rx=\"" + num2str(e.points[0].lengthX(e.points[1])) + "\" ry=\""
+                                + num2str(e.points[0].lengthY(e.points[1])) + "\"\n" + style;
+                    }
+                    if (e.id == LINE || e.id == POLYLINE) {
+                        text += "<polyline points=\"";
+                        for (const auto &p : e.points) {
+                            text +=  point2str(p);
+                        }
+                        text += + "\"\n" + style;
+                    }
+                    if (e.id == POLYGON) {
+                        text += "<polygon points=\"";
+                        for (size_t i = 1; i < e.points.size(); i++) {
+                            text +=  point2str(e.points[i]) + " ";
+                        }
+                        text += "\"\n" + style;
+                    }
+                    text += "\n";
+                }
+            }
+        }
         text += "</svg>";
     }
 
