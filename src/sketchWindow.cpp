@@ -13,8 +13,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <math.h>
 #include <string>
+
+constexpr double radians(const int angle) { return angle * std::numbers::pi / 180; }
 
 SketchWin::SketchWin() : Gtk::ApplicationWindow()
 {
@@ -251,8 +252,8 @@ void SketchWin::updateShapes()
                     double rX = p1.length(m_Ruler);
                     double rY = p1.length(m_Ruler);
                     while (angle > 0) {
-                        Point p = Point(p1.X + rX * cos(angle * std::numbers::pi / 180),
-                                        p1.Y + rY * sin(angle * std::numbers::pi / 180));
+                        Point p = Point(p1.X + rX * cos(radians(angle)),
+                                        p1.Y + rY * sin(radians(angle)));
                         m_Elements.back().points.push_back(p);
                         angle -= m_Elements.back().value;
                     }
@@ -278,19 +279,19 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
         if (fill) { cr->fill(); } else { cr->stroke(); }
     };
 
-    auto arc = [&cr](Point p, double r, bool fill = false) {
-        cr->arc(p.X, p.Y, r, 0.0, 2 * std::numbers::pi);
+    auto arc = [&cr](Point center, double r, bool fill = false) {
+        cr->arc(center.X, center.Y, r, 0.0, 2 * std::numbers::pi);
         if (fill) { cr->fill(); } else { cr->stroke(); }
     };
 
-    auto circle = [&cr](Point p, int angle, double rX, double rY, double step, bool fill = false) {
+    auto circle = [&cr](Point center, int angle, double rX, double rY, double step, bool fill = false) {
         angle += 360;
-        double x0 = p.X + rX * cos(angle * std::numbers::pi / 180);
-        double y0 = p.Y + rY * sin(angle * std::numbers::pi / 180);
+        double x0 = center.X + rX * cos(radians(angle));
+        double y0 = center.Y + rY * sin(radians(angle));
         while (angle > 0) {
-            double x1 = p.X + rX * cos(angle * std::numbers::pi / 180);
-            double y1 = p.Y + rY * sin(angle * std::numbers::pi / 180);
-            cr->move_to(p.X, p.Y);
+            double x1 = center.X + rX * cos(radians(angle));
+            double y1 = center.Y + rY * sin(radians(angle));
+            cr->move_to(center.X, center.Y);
             if (!fill) { cr->move_to(x0, y0); }
             cr->line_to(x1, y1);
             cr->stroke();
@@ -333,6 +334,10 @@ void SketchWin::draw(const Cairo::RefPtr<Cairo::Context> &cr, int width, int hei
                     circle(p1, 0, rX, rY, e.value);
                 }
                 if (e.id == POLYGON) {
+                    Gdk::Cairo::set_source_rgba(cr, e.fillColor.rgba());
+                    for(auto r = 0; r < p1.length(p2); r++) {
+                        circle(p1, p1.angle(p2), r, r, e.value);
+                    }
                     Gdk::Cairo::set_source_rgba(cr, e.strokeColor.rgba());
                     circle(p1, p1.angle(p2), p1.length(p2), p1.length(p2), e.value);
                 }
@@ -561,12 +566,12 @@ double SketchWin::Point::length(Point p)
 
 double SketchWin::Point::lengthX(Point p)
 {
-    return fmax(X, p.X) - fmin(X, p.X);
+    return std::max(X, p.X) - std::min(X, p.X);
 }
 
 double SketchWin::Point::lengthY(Point p)
 {
-    return fmax(Y, p.Y) - fmin(Y, p.Y);
+    return std::max(Y, p.Y) - std::min(Y, p.Y);
 }
 
 SketchWin::Color::Color()
