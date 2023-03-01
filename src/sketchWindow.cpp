@@ -103,7 +103,7 @@ SketchWin::SketchWin() : Gtk::ApplicationWindow()
         m_Btn.back().signal_clicked().connect(sigc::bind(sigc::mem_fun(*this, &SketchWin::setShape), ShapeID(i)));
     }
 
-    m_ColorBtn_Fill.set_rgba(Gdk::RGBA(0.0, 0.0, 0.0, 0.0));
+    m_ColorBtn_Fill.set_rgba(Gdk::RGBA(1.0, 1.0, 1.0, 1.0));
     m_ColorBtn_Fill.set_visible(true);
     m_ColorBtn_Fill.set_can_focus(false);
     m_ColorBtn_Fill.set_tooltip_text("Fill color");
@@ -681,13 +681,17 @@ void SketchWin::save(std::string path)
     }
 
     if (extension == ".svg" || extension == ".SVG") {
-        text = "<svg>\n";
+        text = "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+               "<svg width=\"" + num2str(m_DrawingArea.get_width())
+                + "\" height=\"" + num2str(m_DrawingArea.get_height()) + "\">\n";
         for (auto &e : m_Elements) {
             if (e.id != NONE) {
                 if (e.points.size() >= 2) {
                     std::string fillColor = e.fillColor.txt(false);
-                    std::string style = "style=\"stroke:rgb(" + e.strokeColor.txt(false) + ");stroke-width:"
-                            + num2str(e.strokeWidth) + "\" />";
+                    std::string style = "style=\"";
+                    style += (e.id == LINE || e.id == POLYLINE) ? "" : "fill:rgb(" + e.fillColor.txt(false) + ");";
+                    style += "stroke:rgb(" + e.strokeColor.txt(false)
+                            + ");stroke-width:" + num2str(e.strokeWidth) + "\" />\n";
                     if (e.id == LINE) {
                         text += "<line x1=\"" + num2str(e.points[0].X) + "\" y1=\"" + num2str(e.points[0].Y)
                                 + "\" x2=\"" + num2str(e.points[1].X) + "\" y2=\"" + num2str(e.points[1].Y) + "\"\n" + style;
@@ -702,17 +706,17 @@ void SketchWin::save(std::string path)
                                 + "\" rx=\"" + num2str(e.points[0].lengthX(e.points[1])) + "\" ry=\""
                                 + num2str(e.points[0].lengthY(e.points[1])) + "\"\n" + style;
                     }
-                    if (e.id == LINE || e.id == POLYLINE) {
+                    if (e.id == POLYLINE) {
                         text += "<polyline points=\"";
                         for (const auto &p : e.points) {
-                            text +=  point2str(p);
+                            text +=  point2str(p, false)  + " ";
                         }
                         text += + "\"\n" + style;
                     }
                     if (e.id == POLYGON) {
                         text += "<polygon points=\"";
                         for (size_t i = 1; i < e.points.size(); i++) {
-                            text +=  point2str(e.points[i]) + " ";
+                            text +=  point2str(e.points[i], false) + " ";
                         }
                         text += "\"\n" + style;
                     }
