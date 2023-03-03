@@ -7,20 +7,20 @@
  */
 #pragma once
 
-#include "gtkmm-4.0/gdkmm/rgba.h"
-#include "gtkmm-4.0/gtkmm/aboutdialog.h"
-#include "gtkmm-4.0/gtkmm/applicationwindow.h"
-#include "gtkmm-4.0/gtkmm/box.h"
-#include "gtkmm-4.0/gtkmm/builder.h"
-#include "gtkmm-4.0/gtkmm/button.h"
-#include "gtkmm-4.0/gtkmm/colorbutton.h"
-#include "gtkmm-4.0/gtkmm/colorchooserdialog.h"
-#include "gtkmm-4.0/gtkmm/drawingarea.h"
-#include "gtkmm-4.0/gtkmm/filechooserdialog.h"
-#include "gtkmm-4.0/gtkmm/messagedialog.h"
-#include "gtkmm-4.0/gtkmm/popovermenu.h"
-#include "gtkmm-4.0/gtkmm/spinbutton.h"
-#include "gtkmm-4.0/gtkmm/statusbar.h"
+#include <gtkmm-4.0/gdkmm/rgba.h>
+#include <gtkmm-4.0/gtkmm/aboutdialog.h>
+#include <gtkmm-4.0/gtkmm/applicationwindow.h>
+#include <gtkmm-4.0/gtkmm/box.h>
+#include <gtkmm-4.0/gtkmm/builder.h>
+#include <gtkmm-4.0/gtkmm/button.h>
+#include <gtkmm-4.0/gtkmm/colorbutton.h>
+#include <gtkmm-4.0/gtkmm/colorchooserdialog.h>
+#include <gtkmm-4.0/gtkmm/drawingarea.h>
+#include <gtkmm-4.0/gtkmm/filechooserdialog.h>
+#include <gtkmm-4.0/gtkmm/messagedialog.h>
+#include <gtkmm-4.0/gtkmm/popovermenu.h>
+#include <gtkmm-4.0/gtkmm/spinbutton.h>
+#include <gtkmm-4.0/gtkmm/statusbar.h>
 
 #include <string>
 #include <vector>

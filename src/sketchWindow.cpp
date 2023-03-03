@@ -689,7 +689,7 @@ void SketchWin::save(std::string path)
                 if (e.points.size() >= 2) {
                     std::string fillColor = e.fillColor.txt(false);
                     std::string style = "style=\"";
-                    style += (e.id == LINE || e.id == POLYLINE) ? "" : "fill:rgb(" + e.fillColor.txt(false) + ");";
+                    style += (e.id == LINE || e.id == POLYLINE) ? "fill:none;" : "fill:rgb(" + e.fillColor.txt(false) + ");";
                     style += "stroke:rgb(" + e.strokeColor.txt(false)
                             + ");stroke-width:" + num2str(e.strokeWidth) + "\" />\n";
                     if (e.id == LINE) {
@@ -733,7 +733,12 @@ void SketchWin::save(std::string path)
             fileout.open(path, std::ios::out);
             fileout << text;
             fileout.close();
-            m_StatusBar.push("Save in " + path);
+            std::string filename = std::filesystem::path(path).filename();
+            std::string dir = std::filesystem::path(path).relative_path();
+            if (dir.size() > (4 * filename.size())) {
+                dir = dir.substr(0, 2 * filename.size());
+            }
+            m_StatusBar.push("Save in " + dir + " ... " + filename);
         }
         catch (...) {
             info("There was something wrong!");
